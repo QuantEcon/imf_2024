@@ -31,3 +31,8 @@ A workshop for the IMF's Institute for Capacity Development
 * Wednesday afternoon: Further applications
   - Sovereign default?
   - the Bianchi overborrowing model?
+
+## Useful References
+
+* https://www.anaconda.com/download
+* https://pythonspeed.com/
