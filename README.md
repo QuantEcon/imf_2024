@@ -2,6 +2,30 @@
 
 A workshop for the IMF's Institute for Capacity Development
 
+## Abstract
+
+Open source scientific computing environments built around the Python
+programming language have expanded rapidly in recent years. They now form the
+dominant paradigm in artificial intelligence and many fields within the natural
+sciences.  Economists can greatly enhance their modeling and data processing
+capabilities by exploiting Python's scientific ecosystem.  This course will
+cover the foundations of Python programming and Python scientific libraries, as
+well as showing how they can be used in economic applications for rapid
+development and high performance computing.
+
+## Instructors
+
+Chase Coleman [add bio here]
+
+John Stachurski is a mathematical and computational economist based at the
+Australian National University who works on algorithms at the intersection of
+dynamic programming, Markov dynamics, economics, and finance.  His work is
+published in such journals as Econometrica, the Journal of Finance, Automatica,
+and Operations Research.  In 2016 he co-founded QuantEcon with Thomas J.
+Sargent. He has lectured and run workshops on open source and high performance
+computing all around the world. 
+
+
 ## Times and Dates
 
 * Dates: March 25-27, 2024
