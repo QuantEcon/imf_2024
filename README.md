@@ -1,5 +1,7 @@
 # Modern Computational Economics and Policy Applications
 
+![](qe-logo-large.png)
+
 A workshop for the IMF's Institute for Capacity Development
 
 ## Abstract
