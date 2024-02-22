@@ -17,18 +17,18 @@ development and high performance computing.
 
 ## Instructors
 
-Chase Coleman is a computational economist based at New York University where
+[Chase Coleman](https://github.com/cc7768) is a computational economist based at New York University where
 he is a visiting assistant professor. He was an early contributor at QuantEcon
 and, along with other members of QuantEcon, has given lectures and workshops
 on Python, Julia, and other open source computational tools at institutions and
 universities all around the world.
 
-John Stachurski is a mathematical and computational economist based at the
-Australian National University who works on algorithms at the intersection of
-dynamic programming, Markov dynamics, economics, and finance.  His work is
-published in such journals as Econometrica, the Journal of Finance, Automatica,
-and Operations Research.  In 2016 he co-founded QuantEcon with Thomas J.
-Sargent. 
+[John Stachurski](https://johnstachurski.net/) is a mathematical and
+computational economist based at the Australian National University who works on
+algorithms at the intersection of dynamic programming, Markov dynamics,
+economics, and finance.  His work is published in journals such as the Journal
+of Finance, the Journal of Economic Theory, Automatica, Econometrica, and
+Operations Research.  In 2016 he co-founded QuantEcon with Thomas J. Sargent. 
 
 
 ## Times and Dates
