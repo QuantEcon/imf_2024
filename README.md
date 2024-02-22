@@ -41,25 +41,26 @@ Sargent.
 ## Syllabus
 
 * Monday morning: Overview
-  - JAX on GPUs vs Matlab
-  - a quick survey of all the different plotting libraries?
-  - some other overview of the massive scientific computing ecosystem?
+  - Shock and awe: JAX on GPUs 
+  - Python and the AI revolution
+  - A brief tour of Python's massive scientific computing ecosystem
 * Monday afternoon: Python basics
-  - elementary Python (e.g., everything's an object)
+  - Elementary Python (e.g., everything's an object)
   - NumPy basics
 * Tuesday morning: Markov chains in Python
-  - linear algebra methods
-  - simulation
-  - continuous state dynamics
+  - Linear algebra methods
+  - Simulation
+  - Continuous state dynamics
 * Tuesday afternoon: Dynamic programming
-  - job search
-  - household problems
-  - dynamic programming with JAX
+  - Job search
+  - Household problems
+  - Dynamic programming with JAX
 * Wednesday morning: Heterogeneous agents
-  - the Aiyagari model
+  - The Hopenhayn model and the firm size distribution
+  - The Aiyagari model
 * Wednesday afternoon: Further applications
-  - Sovereign default?
-  - the Bianchi overborrowing model?
+  - Sovereign default
+  - The Bianchi overborrowing model?
 
 ## Useful References
 
