@@ -1,6 +1,6 @@
 # # Optimal savings with JAX
 #
-# #### Prepared for the CBC QuantEcon Workshop (September 2022)
+# #### Prepared for the IMF QuantEcon Workshop (March 2024)
 #
 # #### John Stachurski
 #
@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 # Use 64 bit floats with JAX in order to match NumPy/Numba code
 jax.config.update("jax_enable_x64", True)
 
+
 def successive_approx(T,                     # Operator (callable)
                       x_0,                   # Initial condition
                       tolerance=1e-6,        # Error tolerance
@@ -27,7 +28,7 @@ def successive_approx(T,                     # Operator (callable)
     k = 1
     while error > tolerance and k <= max_iter:
         x_new = T(x)
-        error = jnp.max(np.abs(x_new - x))
+        error = np.max(np.abs(x_new - x))
         if verbose and k % print_step == 0:
             print(f"Completed iteration {k} with error {error}.")
         x = x_new
@@ -38,8 +39,25 @@ def successive_approx(T,                     # Operator (callable)
         print(f"Terminated successfully in {k} iterations.")
     return x
 
+def successive_approx_jax(x_0,
+                      constants, sizes, arrays,                     # Operator (callable)
+                                       # Initial condition
+                      tolerance=1e-6,        # Error tolerance
+                      max_iter=10_000,       # Max iteration bound
+                      ):        
 
-# -
+    def body_fun(k_x_err):
+        k, x, error = k_x_err
+        x_new = T(x, constants, sizes, arrays)
+        error = jnp.max(jnp.abs(x_new - x))
+        return k + 1, x_new, error
+
+    def cond_fun(k_x_err):
+        k, x, error = k_x_err
+        return jnp.logical_and(error > tolerance, k <= max_iter)
+
+    k, x, error = jax.lax.while_loop(cond_fun, body_fun, (1, x_0, tolerance + 1))
+    return x
 
 # ##  Primitives and Operators 
 
@@ -58,9 +76,9 @@ def create_consumption_model(R=1.01,                    # Gross interest rate
     A function that takes in parameters and returns an instance of Model that
     contains data for the optimal savings problem.
     """
-    w_grid = jnp.linspace(w_min, w_max, w_size)  
-    mc = qe.tauchen(n=y_size, rho=ρ, sigma=ν)
-    y_grid, Q = jnp.exp(mc.state_values), mc.P
+    w_grid = np.linspace(w_min, w_max, w_size)  
+    mc = qe.tauchen(y_size, ρ, ν)
+    y_grid, Q = np.exp(mc.state_values), mc.P
     return Model(β=β, R=R, γ=γ, w_grid=w_grid, y_grid=y_grid, Q=Q)
 
 
@@ -161,9 +179,9 @@ def T_σ(v, σ, constants, sizes, arrays):
     Q = jnp.reshape(Q, (1, y_size, y_size))
 
     # Calculate the expected sum Σ_jp v[σ[i, j], jp] * Q[i, j, jp]
-    Ev = jnp.sum(V * Q, axis=2)
+    Ev = np.sum(V * Q, axis=2)
 
-    return r_σ + β * Ev
+    return r_σ + β * np.sum(V * Q, axis=2)
 
 
 def R_σ(v, σ, constants, sizes, arrays):
@@ -198,7 +216,7 @@ def R_σ(v, σ, constants, sizes, arrays):
     Q = jnp.reshape(Q, (1, y_size, y_size))
 
     # Compute and return v[i, j] - β Σ_jp v[σ[i, j], jp] * Q[j, jp]
-    return v - β * jnp.sum(V * Q, axis=2)
+    return v - β * np.sum(V * Q, axis=2)
 
 
 def get_value(σ, constants, sizes, arrays):
@@ -228,125 +246,50 @@ get_value = jax.jit(get_value, static_argnums=(2,))
 
 T_σ = jax.jit(T_σ, static_argnums=(3,))
 R_σ = jax.jit(R_σ, static_argnums=(3,))
-
+successive_approx_jax = jax.jit(successive_approx_jax, static_argnums=(2,))
 
 # ##  Solvers
-
 def value_iteration(model, tol=1e-5):
+    "Implements VFI."
+
+    constants, sizes, arrays = model
+    # _T = lambda v: T(v, constants, sizes, arrays)
+    vz = jnp.zeros(sizes)
+
+    v_star = successive_approx_jax(vz,constants, sizes, arrays, tol)
+    return get_greedy(v_star, constants, sizes, arrays)
+
+def value_iteration_2(model, tol=1e-5):
     "Implements VFI."
 
     constants, sizes, arrays = model
     _T = lambda v: T(v, constants, sizes, arrays)
     vz = jnp.zeros(sizes)
 
-    v_star = successive_approx(_T, vz, tolerance=tol)
+    v_star = successive_approx(_T, vz, tol)
     return get_greedy(v_star, constants, sizes, arrays)
 
-def policy_iteration(model):
-    "Howard policy iteration routine."
-    constants, sizes, arrays = model
-    vz = jnp.zeros(sizes)
-    σ = jnp.zeros(sizes, dtype=int)
-    i, error = 0, 1.0
-    while error > 0:
-        v_σ = get_value(σ, constants, sizes, arrays)
-        σ_new = get_greedy(v_σ, constants, sizes, arrays)
-        error = jnp.max(np.abs(σ_new - σ))
-        σ = σ_new
-        i = i + 1
-        print(f"Concluded loop {i} with error {error}.")
-    return σ
 
-def optimistic_policy_iteration(model, tol=1e-5, m=10):
-    "Implements the OPI routine."
-    constants, sizes, arrays = model
-    v = jnp.zeros(sizes)
-    error = tol + 1
-    while error > tol:
-        last_v = v
-        σ = get_greedy(v, constants, sizes, arrays)
-        for _ in range(m):
-            v = T_σ(v, σ, constants, sizes, arrays)
-        error = jnp.max(np.abs(v - last_v))
-    return get_greedy(v, constants, sizes, arrays)
-
-
-# ## Plots
-
-fontsize=12
 model = create_consumption_model_jax()
 # Unpack 
 constants, sizes, arrays = model
 β, R, γ = constants
 w_size, y_size = sizes
 w_grid, y_grid, Q = arrays
-σ_star = policy_iteration(model)
-fig, ax = plt.subplots(figsize=(9, 5.2))
-ax.plot(w_grid, w_grid, "k--", label="45")
-ax.plot(w_grid, w_grid[σ_star[:, 1]], label="$\\sigma^*(\cdot, y_1)$")
-ax.plot(w_grid, w_grid[σ_star[:, -1]], label="$\\sigma^*(\cdot, y_N)$")
-ax.legend(fontsize=fontsize)
-plt.show()
+
 
 # ## Tests
 
 model = create_consumption_model_jax()
 
-print("Starting HPI.")
-qe.tic()
-out = policy_iteration(model)
-elapsed = qe.toc()
-print(out)
-print(f"HPI completed in {elapsed} seconds.")
-
 print("Starting VFI.")
 qe.tic()
 out = value_iteration(model)
 elapsed = qe.toc()
-print(out)
-print(f"VFI completed in {elapsed} seconds.")
+print(f"VFI with JAX completed in {elapsed} seconds.")
 
-print("Starting OPI.")
 qe.tic()
-out = optimistic_policy_iteration(model, m=100)
+out2 = value_iteration_2(model)
 elapsed = qe.toc()
-print(out)
-print(f"OPI completed in {elapsed} seconds.")
-
-
-# +
-m_vals = range(5, 3000, 100)
-model = create_consumption_model_jax()
-print("Running Howard policy iteration.")
-qe.tic()
-σ_pi = policy_iteration(model)
-pi_time = qe.toc()
-print(f"PI completed in {pi_time} seconds.")
-
-print("Running value function iteration.")
-qe.tic()
-σ_vfi = value_iteration(model, tol=1e-5)
-vfi_time = qe.toc()
-print(f"VFI completed in {vfi_time} seconds.")
-
-opi_times = []
-for m in m_vals:
-    qe.tic()
-    σ_opi = optimistic_policy_iteration(model, m=m, tol=1e-5)
-    opi_time = qe.toc()
-    print(f"OPI with m={m} completed in {opi_time} seconds.")
-    opi_times.append(opi_time)
-    
-fig, ax = plt.subplots(figsize=(9, 5.2))
-ax.plot(m_vals, np.full(len(m_vals), pi_time), 
-        lw=2, label="Howard policy iteration")
-ax.plot(m_vals, np.full(len(m_vals), vfi_time), 
-        lw=2, label="value function iteration")
-ax.plot(m_vals, opi_times, lw=2, label="optimistic policy iteration")
-ax.legend(fontsize=fontsize, frameon=False)
-ax.set_xlabel("$m$", fontsize=fontsize)
-ax.set_ylabel("time", fontsize=fontsize)
-plt.show()
-# -
-
-
+print("Does previous and current function return same?", np.allclose(out, out2))
+print(f"VFI older version completed in {elapsed} seconds.")
