@@ -15,6 +15,12 @@ cover the foundations of Python programming and Python scientific libraries, as
 well as showing how they can be used in economic applications for rapid
 development and high performance computing.
 
+## Times and Dates
+
+* Dates: March 25-27, 2024
+* Times: 9:30 -- 12:30 and 14:00 -- 17:00 
+* Location: room HQ2-3B-748 (in-person participants) 
+
 ## Instructors
 
 [Chase Coleman](https://github.com/cc7768) is a computational economist based at New York University where
@@ -30,13 +36,9 @@ economics, and finance.  His work is published in journals such as the Journal
 of Finance, the Journal of Economic Theory, Automatica, Econometrica, and
 Operations Research.  In 2016 he co-founded QuantEcon with Thomas J. Sargent. 
 
+In addition, 2011 Nobel Laureate [Thomas J. Sargent](http://www.tomsargent.com/)
+will join remotely and run a one hour session on the 27th.
 
-## Times and Dates
-
-* Dates: March 25-27, 2024
-* Times: 9:30 -- 12:30 and 14:00 -- 17:00 
-* Location: room HQ2-3B-748 (in-person participants) 
-* Virtual: WebEx Meetings Platform 
 
 ## Syllabus
 
@@ -61,6 +63,21 @@ Operations Research.  In 2016 he co-founded QuantEcon with Thomas J. Sargent.
 * Wednesday afternoon: Further applications
   - Sovereign default
   - The Bianchi overborrowing model?
+
+## Useful References
+
+Required Python libraries (much of which is found in the Anaconda Python distribution)
+
+* `ipython`
+* `numpy`
+* `scipy`
+* `matplotlib`
+* `pandas`
+* `scikit-learn`
+* `statsmodels`
+* `numba`
+* `interpolation` (https://www.econforge.org/interpolation.py/)
+* `f2py`
 
 ## Useful References
 
