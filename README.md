@@ -64,11 +64,17 @@ will join remotely and run a one hour session on the 27th.
   - Sovereign default
   - The Bianchi overborrowing model?
 
-## Useful References
+## Software
 
-Required Python libraries (much of which is found in the Anaconda Python distribution)
+The main interface to Python will be either `jupyter-notebook` or `jupyter-lab`.
 
-* `ipython`
+Access to the `ipython` REPL will also be useful.
+
+Some work will be done remotely using Google Colab --- a Google account is
+required.
+
+Required Python libraries (much of which is found in the Anaconda Python distribution):
+
 * `numpy`
 * `scipy`
 * `matplotlib`
@@ -76,8 +82,9 @@ Required Python libraries (much of which is found in the Anaconda Python distrib
 * `scikit-learn`
 * `statsmodels`
 * `numba`
-* `interpolation` (https://www.econforge.org/interpolation.py/)
 * `f2py`
+* `interpolation` (https://www.econforge.org/interpolation.py/)
+* `quantecon`
 
 ## Useful References
 
