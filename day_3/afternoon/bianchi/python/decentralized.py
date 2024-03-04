@@ -4,7 +4,7 @@
 #
 # * Overborrowing and Systemic Externalities (AER 2011) by Javier Bianchi
 #
-# Author: John Stachurski.
+# Authors: John Stachurski.
 
 import numpy as np
 from numba import njit
@@ -14,7 +14,6 @@ from scipy.optimize import root, newton
 from collections import namedtuple
 import matplotlib.pyplot as plt
 
-# from scipy.interpolate import interp1d
 # from quantecon.optimize.root_finding import brentq 
 
 def d_infty(x, y):
@@ -41,7 +40,7 @@ def create_overborrowing_model(σ=2,          # CRRA utility parameter
     """
 
     # Read in Markov transitions and y grids from Bianchi's Matlab file
-    markov_data = loadmat('../proc_shock.mat')
+    markov_data = loadmat('proc_shock.mat')
     yT, yN, P = markov_data['yT'], markov_data['yN'], markov_data['Prob']
     n_y = len(yT)
 
@@ -55,9 +54,6 @@ def create_overborrowing_model(σ=2,          # CRRA utility parameter
                  b_grid=b_grid, yN=yN, yT=yT, P=P)
 
 
-# ## Decentralized Equilibrium
-
-# Here's my effort to compute the decentralized equilibrium.  
 
 def initialize_decentralized_eq_search(model):
 
@@ -72,7 +68,7 @@ def initialize_decentralized_eq_search(model):
     YN = np.reshape(yN, (1, n_y))
 
     bp = np.tile(b, (1, n_y))      # initial guess for bp
-##### FO: changed last term -b to -bp
+    ##### FO: changed last term -b to -bp
     c = b * R + YT - bp  # corresponding consumption 
     price = ((1 - ω) / ω) * c**(1+η)
     b_bind  = -κ * (price * YN + YT)
