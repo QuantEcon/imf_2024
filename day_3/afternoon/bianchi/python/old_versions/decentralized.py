@@ -3,8 +3,6 @@
 # Python implementation of 
 #
 # * Overborrowing and Systemic Externalities (AER 2011) by Javier Bianchi
-#
-# Authors: John Stachurski.
 
 import numpy as np
 from numba import njit
@@ -14,25 +12,22 @@ from scipy.optimize import root, newton
 from collections import namedtuple
 import matplotlib.pyplot as plt
 
-# from quantecon.optimize.root_finding import brentq 
 
 def d_infty(x, y):
     return np.max(np.abs(x - y))
 
-# Define a namedtuple to store parameters and arrays
-Model = namedtuple(
-    'Model', ('σ', 'η', 'β', 'ω', 'κ', 'R', 'b_grid', 'yN', 'yT', 'P')
-)
+Model = namedtuple('Model', 
+   ('σ', 'η', 'β', 'ω', 'κ', 'R', 'b_grid', 'yn_grid', 'yt_grid', 'P'))
 
 def create_overborrowing_model(σ=2,          # CRRA utility parameter
                                η=(1/0.83)-1, # elasticity (elasticity = 0.83)
-                               β=0.906,      # discount factor
-                               ω=0.3070,     # share for tradables
+                               β=0.91,       # discount factor
+                               ω=0.31,       # share for tradables
                                κ=0.3235,     # constraint parameter
                                r=0.04,       # interest rate
                                n_B=100,      # bond grid size
                                b_grid_min=-1.02,    # grid min
-                               b_grid_max=-0.2000): # grid max
+                               b_grid_max=-0.6):    # grid max
     """
     Creates an instance of the overborrowing model using default parameter
     values from Bianchi AER 2011.
@@ -41,72 +36,61 @@ def create_overborrowing_model(σ=2,          # CRRA utility parameter
 
     # Read in Markov transitions and y grids from Bianchi's Matlab file
     markov_data = loadmat('proc_shock.mat')
-    yT, yN, P = markov_data['yT'], markov_data['yN'], markov_data['Prob']
-    n_y = len(yT)
+    yt_grid, yn_grid, P = markov_data['yT'], markov_data['yN'], markov_data['Prob']
 
-    # Shift P from column to row major
-    P = np.ascontiguousarray(P)
-
+    P = np.ascontiguousarray(P)   # shift P to row major
     # Set up grid for bond holdings
     b_grid = np.linspace(b_grid_min, b_grid_max, n_B)
 
     return Model(σ=σ, η=η, β=β, ω=ω, κ=κ, R=(1 + r), 
-                 b_grid=b_grid, yN=yN, yT=yT, P=P)
+                 b_grid=b_grid, yn_grid=yn_grid, yt_grid=yt_grid, P=P)
 
 
 
 def initialize_decentralized_eq_search(model):
 
     # Unpack
-    σ, η, β, ω, κ, R, b_grid, yN, yT, P = model
+    σ, η, β, ω, κ, R, b_grid, yn_grid, yt_grid, P = model
     n_B =  len(b_grid)
-    n_y =  len(yN)
+    n_y =  len(yn_grid)
 
     # Reshape
-    b = np.reshape(b_grid, (n_B, 1))
-    YT = np.reshape(yT, (1, n_y))
-    YN = np.reshape(yN, (1, n_y))
+    b  = np.reshape(b_grid,  (n_B, 1))
+    yt = np.reshape(yt_grid, (1, n_y))
+    yn = np.reshape(yn_grid, (1, n_y))
+    bp = np.tile(b, (1, n_y))            # initial guess for bp
 
-    bp = np.tile(b, (1, n_y))      # initial guess for bp
-    ##### FO: changed last term -b to -bp
-    c = b * R + YT - bp  # corresponding consumption 
-    price = ((1 - ω) / ω) * c**(1+η)
-    b_bind  = -κ * (price * YN + YT)
-    c_bind = b * R + YT - b_bind
+    c = b * R + yt - bp                  
+    price = ((1 - ω) / ω) * c**(1 + η)
+    b_bind  = -κ * (price * yn + yt)
+    c_bind = b * R + yt - b_bind
 
     return c, c_bind, bp
 
 
 @njit
 def compute_marginal_utility(c, model):
-
     # Unpack and set up
-    σ, η, β, ω, κ, R, b_grid, yN, yT, P = model
-    n_y =  len(yN)
-
-    YN = np.reshape(yN, (1, n_y))
-
+    σ, η, β, ω, κ, R, b_grid, yn_grid, yt_grid, P = model
+    n_y =  len(yn_grid)
+    yn = np.reshape(yn_grid, (1, n_y))
     # Compute an aggregated consumption good assuming c_N = y_N
-    totalc = ω * c**(-η) + (1-ω) * YN**(-η)
-
+    total_c = ω * c**(-η) + (1-ω) * yn**(-η)
     # Compute marginal utility 
-    mup = ω * totalc**(σ/η-1/η-1) * (c**(-η-1))  
-
+    mup = ω * total_c**(σ/η-1/η-1) * (c**(-η-1))  
     return mup
 
 
 def compute_exp_marginal_utility(mu, bp, model):
-
     # Unpack and set up
-    σ, η, β, ω, κ, R, b_grid, yN, yT, P = model
-    n_B, n_y =  len(b_grid), len(yN)
-
+    σ, η, β, ω, κ, R, b_grid, yn_grid, yt_grid, P = model
+    n_B, n_y =  len(b_grid), len(yn_grid)
     # Allocate memory
     exp_mu = np.empty((n_B, n_y)) 
     mu_vals = np.empty(n_y)
 
-    f = interp1d(b_grid, mu, axis=0, bounds_error=False, fill_value='extrapolate')
-
+    f = interp1d(b_grid, mu, axis=0, bounds_error=False,
+                 fill_value='interpolate')
     # Compute expected marginal utility in today's grid
     for i in range(n_B):
         for j in range(n_y):
@@ -129,26 +113,25 @@ def compute_binding_indicies(exp_mu,  # Expected marginal utility
 def compute_consumption_at_constraint(c, model):
 
     # Unpack and set up
-    σ, η, β, ω, κ, R, b_grid, yN, yT, P = model
-    n_B, n_y =  len(b_grid), len(yN)
+    σ, η, β, ω, κ, R, b_grid, yn_grid, yt_grid, P = model
+    n_B, n_y =  len(b_grid), len(yn_grid)
     b_grid_min, b_grid_max = b_grid[0], b_grid[-1]
 
     # Reshape
     b = np.reshape(b_grid, (n_B, 1))
-    YT = np.reshape(yT, (1, n_y))
-    YN = np.reshape(yN, (1, n_y))
+    yt = np.reshape(yt_grid, (1, n_y))
+    yn = np.reshape(yn_grid, (1, n_y))
 
     # Get current price
-    ### FO: changed function to have power (1+η) instead of (1*η)
-    price = (1 - ω) / ω * (c / YN)**(1 + η)
+    price = (1 - ω) / ω * (c / yn)**(1 + η)
 
     # Obtain bond purchases at the constraint
-    b_bind = - κ * (price * YN + YT)
+    b_bind = - κ * (price * yn + yt)
     b_bind[b_bind > b_grid_max] = b_grid_max
     b_bind[b_bind < b_grid_min] = b_grid_min
     
     # Update c_bind
-    c_bind = R * b + YT - b_bind
+    c_bind = R * b + yt - b_bind
     c_bind[c_bind < 0] = np.inf
 
     return c_bind
@@ -160,15 +143,15 @@ def decentralized_update(c,          # Current consumption policy
                          model):     # Instance of Model
 
     # Unpack and set up
-    σ, η, β, ω, κ, R, b_grid, yN, yT, P = model
+    σ, η, β, ω, κ, R, b_grid, yn_grid, yt_grid, P = model
     b_grid_min, b_grid_max = b_grid[0], b_grid[-1]
     n_B =  len(b_grid)
-    n_y =  len(yN)
+    n_y =  len(yn_grid)
 
     # Reshape
     b = np.reshape(b_grid, (n_B, 1))
-    YT = np.reshape(yT, (1, n_y))
-    YN = np.reshape(yN, (1, n_y))
+    yt = np.reshape(yt_grid, (1, n_y))
+    yn = np.reshape(yn_grid, (1, n_y))
 
     # Make c a new array so it won't be modified in place
     old_c = c
@@ -187,20 +170,19 @@ def decentralized_update(c,          # Current consumption policy
 
             if idx_bind[i, j]:           # Use borrowing constraint to set c
                 c[i, j] = c_bind[i, j]
-            else:                       # Use Euler equation to find c
+            else:                        # Use Euler equation to find c
                 def euler_diff(cc):
-                    return (ω*cc**(-η) + (1-ω)*yN[j]**(-η))**(σ/η -1/η -1) \
+                    return (ω*cc**(-η) + (1-ω)*yn_grid[j]**(-η))**(σ/η -1/η -1) \
                                 * ω*cc**(-η-1) - exp_mu[i, j]
                 c0 = old_c[i, j]
                 c[i, j] = newton(euler_diff, c0)  
 
     # Update bp   
-    bp = R * b + YT - c
+    bp = R * b + yt - c
     bp[bp > b_grid_max] = b_grid_max
     bp[bp < b_grid_min] = b_grid_min
-    ##### FO: again changed power here
-    price = (1 - ω) / ω * (c / YN)**(1 + η)
-    c = R * b + YT - np.maximum(bp, -κ * (price * YN + YT))
+    price = (1 - ω) / ω * (c / yn)**(1 + η)
+    c = R * b + yt - np.maximum(bp, -κ * (price * yn + yt))
 
     # Update c_bind based on the new c
     c_bind = compute_consumption_at_constraint(c, model)
@@ -253,8 +235,7 @@ b_grid = model.b_grid
 # Plot
 fig, ax = plt.subplots()
 ax.plot(b_grid, b_grid, 'k--')
-for i in range(16):
-    ax.plot(b_grid, bp[:, i])
+ax.plot(b_grid, bp[:, 4])
 plt.show()
 
 
