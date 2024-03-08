@@ -3,11 +3,10 @@ Bianchi Overborrowing Model. See the Numba version for details.
 
 """
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 import quantecon as qe
-from numba import jit, prange
-from scipy.io import loadmat
-from collections import namedtuple
 import matplotlib.pyplot as plt
 
 
@@ -15,60 +14,21 @@ def d_infty(x, y):
     return np.max(np.abs(x - y))
 
 
-Model = namedtuple('Model', 
-   ('σ',            # utility parameter
-    'η',            # elasticity
-    'β',            # discount factor 
-    'ω',            # share for tradables
-    'κ',            # constraint parameter
-    'R',            # gross interest rate
-    'b_grid',       # bond grid
-    'y_nodes',      # income nodes (each a point in R^2)
-    'b_size',       # bond grid size
-    'y_size',       # number of income nodes
-    'Q'))           # Markov matrix
-
-
-def create_overborrowing_model(
-        σ=2,                 # CRRA utility parameter
-        η=(1/0.83)-1,        # elasticity = 0.83, η = 0.2048
-        β=0.91,              # discount factor
-        ω=0.31,              # share for tradables
-        κ=0.3235,            # constraint parameter
-        r=0.04,              # interest rate
-        b_grid_size=100,     # bond grid size, increase to 800
-        b_grid_min=-1.02,    # bond grid min
-        b_grid_max=-0.2      # bond grid max (originally -0.6 to match fig)
-    ):    
+def convert_overborrowing_model_to_jax(numpy_model):    
     """
-    Creates an instance of the overborrowing model using default parameter
-    values from Bianchi AER 2011 with κ_n = κ_t = κ.
+    Create a JAX-centric version of the overborrowing model.  Use JAX device
+    arrays instead of NumPy arrays and separate data so that some components can
+    be used as static arguments.
 
-    The Markov matrix has the interpretation
-
-        Q[i_y, i_yp] = one step prob of y_nodes[i_y] -> y_nodes[i_yp]
-
-    Individual income states are extracted via (y_t, y_n) = y_nodes[i_y].
-
+    Uses default parameters from the NumPy version.
     """
-    # read in Markov transitions and y grids from Bianchi's Matlab file
-    data = loadmat('proc_shock.mat')
-    y_t_nodes, y_n_nodes, Q = data['yT'], data['yN'], data['Prob']
-    # set y[i_y] = (y_t_nodes[i_y], y_n_nodes[i_y])
-    y_nodes = np.hstack((y_t_nodes, y_n_nodes))  
-    # shift Q to row major, so that 
-    Q = np.ascontiguousarray(Q)   
-    # set up grid for bond holdings
-    b_grid = np.linspace(b_grid_min, b_grid_max, b_grid_size)
-    # gross interest rate
-    R = 1 + r
+    m = numpy_model
+    parameters = m.σ, m.η, m.β, m.ω, m.κ, m.R
+    sizes = m.b_size, m.y_size
+    arrays = tuple(map(np.array, (m.b_grid, m.y_nodes, m.P)))
+    return parameters, sizes, arrays
+    
 
-    return Model(σ=σ, η=η, β=β, ω=ω, κ=κ, R=R, 
-                 b_grid=b_grid, y_nodes=y_nodes,
-                 b_size=b_grid_size, y_size=len(Q),
-                 Q=Q)
-
-@jit
 def w(model, c, y_n):
     """ 
     Current utility when c_t = c and c_n = y_n.
@@ -77,48 +37,52 @@ def w(model, c, y_n):
         w(c, y_n) := a^(1 - σ) / (1 - σ)
 
     """
-    σ, η, β, ω, κ, R, b_grid, y_nodes, b_size, y_size, Q = model
+    parameters, sizes, arrays = model
+    σ, η, β, ω, κ, R = parameters
     a = (ω * c**(-η) + (1 - ω) * y_n**(-η))**(-1/η)
     return a**(1 - σ) / (1 - σ)
 
 
-@jit
-def generate_initial_H(model, at_constraint=False):
+def generate_initial_H(model):
     """
-    Compute an initial guess for H.
-
-    Use the constraint as a the savings rule.
+    Compute an initial guess for H. Use a hold-steady rule.
 
     """
-    σ, η, β, ω, κ, R, b_grid, y_nodes, b_size, y_size, Q = model
-
-    H = np.empty((b_size, y_size))
-    for i_B, B in enumerate(b_grid):
-        for i_y, y in enumerate(y_nodes):
-            y_t, y_n = y
-            if at_constraint:
-                # set initial condition to constraint given prices
-                c = B * R + y_t - B                  
-                P = ((1 - ω) / ω) * c**(1 + η)
-                H[i_B, i_y] = - κ * (P * y_n + y_t)
-            else:
-                # hold steady rule
-                H[i_B, i_y] = b_grid[i_B]  
+    parameters, sizes, arrays = model
+    b_size, y_size = sizes
+    H = np.reshape(b_grid, (b_size, y_size)) # Put b_grid in all cols
     return H
 
 
-@jit(parallel=True)
 def T(model, v, H):
     """
     Bellman operator.
+
+    We set up a new vector 
+
+        W = W(b, B, y_t, y_n, bp) 
+
+    that gives the value of the RHS of the Bellman equation at each 
+    point (b, B, y_t, y_n, bp).  Then we set up a array 
+
+        M = M(b, B, y_t, y_n, bp) 
+
+    where 
+
+        M(b, B, y_t, y_n, bp) = 1 if bp is feasible, else -inf.
+
+    Then we take the max / argmax of V = W * M over the last axis.
+
     """
-    σ, η, β, ω, κ, R, b_grid, y_nodes, b_size, y_size, Q = model
-    # Storage for new value function
-    v_new = np.empty_like(v)
-    # Storage for greedy policy, with the policy recorded by indices
-    bp_v_greedy = np.empty_like(v)
+    parameters, sizes, arrays = model
+    σ, η, β, ω, κ, R = parameters
+    b_size, y_size = sizes
+    b_grid, y_nodes = arrays
+
+    b = np.reshape(b_grid, (b_size, 1, 1, 1))
+    y = np.reshape(, (b_size, 1, 1, 1))
     
-    for i_y in prange(y_size):
+    for i_y in range(y_size):
         y_t, y_n = y_nodes[i_y]
         # Loop over aggregate state
         for i_B, B in enumerate(b_grid):

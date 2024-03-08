@@ -158,7 +158,7 @@ def T(model, v, H):
                     if - κ * (P * y_n + y_t) <= bp <= R * b + y_t:
                         c = R * b + y_t - bp
                         current_utility = w(model, c, y_n) 
-                        next = β * np.sum(v[i_b, i_Bp, :] * Q[i_y, :])
+                        next = β * np.sum(v[i_bp, i_Bp, :] * Q[i_y, :])
                         current_val = current_utility + next
                         if current_val > max_val:
                             max_val = current_val
@@ -207,7 +207,7 @@ def update_H(model, H, α):
     return H_new
 
 
-def solve_for_equilibrium(model, α=0.05, tol=0.004, max_iter=500):
+def solve_for_equilibrium(model, α=0.1, tol=0.004, max_iter=500):
     """
     Compute equilibrium law of motion.
 
