@@ -34,6 +34,7 @@ from scipy.io import loadmat
 from collections import namedtuple
 import matplotlib.pyplot as plt
 
+from mc_dynamics import discretize_income_var
 
 def d_infty(x, y):
     return np.max(np.abs(x - y))
@@ -75,13 +76,8 @@ def create_overborrowing_model(
     Individual income states are extracted via (y_t, y_n) = y_nodes[i_y].
 
     """
-    # read in Markov transitions and y grids from Bianchi's Matlab file
-    data = loadmat('proc_shock.mat')
-    y_t_nodes, y_n_nodes, Q = data['yT'], data['yN'], data['Prob']
-    # set y[i_y] = (y_t_nodes[i_y], y_n_nodes[i_y])
-    y_nodes = np.hstack((y_t_nodes, y_n_nodes))  
-    # shift Q to row major, so that 
-    Q = np.ascontiguousarray(Q)   
+    # Read in data using parameters estimated in Yamada (2023)
+    y_nodes, Q = discretize_income_var(single_index=True)
     # set up grid for bond holdings
     b_grid = np.linspace(b_grid_min, b_grid_max, b_grid_size)
     # gross interest rate
