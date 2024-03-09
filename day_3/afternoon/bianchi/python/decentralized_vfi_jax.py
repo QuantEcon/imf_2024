@@ -25,7 +25,7 @@ def convert_overborrowing_model_to_jax(numpy_model):
     m = numpy_model
     parameters = m.σ, m.η, m.β, m.ω, m.κ, m.R
     sizes = m.b_size, m.y_size
-    arrays = tuple(map(np.array, (m.b_grid, m.y_nodes, m.P)))
+    arrays = tuple(map(np.array, (m.b_grid, m.y_t_nodes, m.y_n_nodes, m.P)))
     return parameters, sizes, arrays
     
 
@@ -34,6 +34,7 @@ def w(model, c, y_n):
     Current utility when c_t = c and c_n = y_n.
 
         a = [ω c^(- η) + (1 - ω) y_n^(- η)]^(-1/η)
+
         w(c, y_n) := a^(1 - σ) / (1 - σ)
 
     """
@@ -50,13 +51,13 @@ def generate_initial_H(model):
     """
     parameters, sizes, arrays = model
     b_size, y_size = sizes
-    H = np.reshape(b_grid, (b_size, y_size)) # Put b_grid in all cols
+    H = np.reshape(b_grid, (b_size, y_size, y_size)) # b' = b
     return H
 
 
 def T(model, v, H):
     """
-    Bellman operator.
+    The Bellman operator.
 
     We set up a new vector 
 
@@ -79,34 +80,37 @@ def T(model, v, H):
     b_size, y_size = sizes
     b_grid, y_nodes = arrays
 
-    b = np.reshape(b_grid, (b_size, 1, 1, 1))
-    y = np.reshape(, (b_size, 1, 1, 1))
-    
-    for i_y in range(y_size):
-        y_t, y_n = y_nodes[i_y]
-        # Loop over aggregate state
-        for i_B, B in enumerate(b_grid):
-            Bp = H[i_B, i_y]
-            i_Bp = np.searchsorted(b_grid, Bp)  # index corresponding to Bp
-            # compute price of nontradables using aggregates
-            C = R * B + y_t - Bp
-            P = ((1 - ω) / ω) * (C / y_n)**(η + 1)
-            # Loop over the agent's endogenous state
-            for i_b, b in enumerate(b_grid):
-                max_val = -np.inf
-                # Search over bp choices
-                for i_bp, bp in enumerate(b_grid):
-                    # Impose feasibility
-                    if - κ * (P * y_n + y_t) <= bp <= R * b + y_t:
-                        c = R * b + y_t - bp
-                        current_utility = w(model, c, y_n) 
-                        continuation_val = np.sum(v[i_bp, i_Bp, :] * Q[i_y, :])
-                        current_val = current_utility + β * continuation_val
-                        if current_val > max_val:
-                            max_val = current_val
-                            bp_maximizer = bp
-                v_new[i_b, i_B, i_y] = max_val
-                bp_v_greedy[i_b, i_B, i_y] = bp_maximizer
+    # Expand dimension of arrays
+    b   = np.reshape(b_grid,    (b_size, 1, 1, 1, 1))
+    B   = np.reshape(b_grid,    (1, b_size, 1, 1, 1))
+    y_t = np.reshape(y_t_nodes, (1, 1, y_size, 1, 1))
+    y_n = np.reshape(y_n_nodes, (1, 1, 1, y_size, 1))
+    bp  = np.reshape(b_grid,    (1, 1, 1, 1, b_size))
+
+    # Provide some index arrays of the same shape
+    b_idx   = np.reshape(range(b_size),    (b_size, 1, 1, 1, 1))
+
+    # Construct Bp and its indices associated with H
+    Bp     = np.reshape(H, (1, b_size, y_size, y_size, 1))
+    Bp_idx = np.searchsorted(b_grid, Bp) 
+
+    # compute price of nontradables using aggregates
+    C = R * B + y_t - Bp
+    P = ((1 - ω) / ω) * (C / y_n)**(η + 1)
+
+    c = R * b + y_t - bp
+    u = w(model, c, y_n)
+
+    constraint_holds = - κ * (P * y_n + y_t) <= bp <= R * b + y_t
+
+    # Q[y_t, y_n, y_tp, y_np] -> Q[b, B, y_t, y_n, bp, Bb, y_tp, y_np]
+    # v[bp, Bb, y_tp, y_np]   -> v[b, B, y_t, y_n, bp, Bb, y_tp, y_np]
+    v = np.resize(v
+    EV = np.sum(v * Q, axis=?)
+
+    W = np.where(constraint_holds, u + β * EV, -np.inf)
+    v_new       = np.max(W, axis=?)
+    bp_v_greedy = np.argmax(W, axis=?)
 
     return v_new, bp_v_greedy
 

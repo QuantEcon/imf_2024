@@ -63,6 +63,8 @@ def discretize_income_var(A=A2, Ω=Ω2,
     if single_index:
         return y_nodes, Q
     else:
+        y_t_nodes = y_nodes[:, 0]
+        y_n_nodes = y_nodes[:, 1]
         n = grid_size
         Q_multi = np.empty((n, n, n, n))
         for i in range(n):
