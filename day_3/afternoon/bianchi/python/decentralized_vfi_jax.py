@@ -59,21 +59,6 @@ def T(model, v, H):
     """
     The Bellman operator.
 
-    We set up a new vector 
-
-        W = W(b, B, y_t, y_n, bp) 
-
-    that gives the value of the RHS of the Bellman equation at each 
-    point (b, B, y_t, y_n, bp).  Then we set up a array 
-
-        M = M(b, B, y_t, y_n, bp) 
-
-    where 
-
-        M(b, B, y_t, y_n, bp) = 1 if bp is feasible, else -inf.
-
-    Then we take the max / argmax of V = W * M over the last axis.
-
     """
     parameters, sizes, arrays = model
     σ, η, β, ω, κ, R = parameters
@@ -103,9 +88,7 @@ def T(model, v, H):
 
     constraint_holds = - κ * (P * y_n + y_t) <= bp <= R * b + y_t
 
-    # Q[y_t, y_n, y_tp, y_np] -> Q[b, B, y_t, y_n, bp, Bb, y_tp, y_np]
-    # v[bp, Bb, y_tp, y_np]   -> v[b, B, y_t, y_n, bp, Bb, y_tp, y_np]
-    v = np.resize(v
+    v = np.resize(v, ?)
     EV = np.sum(v * Q, axis=?)
 
     W = np.where(constraint_holds, u + β * EV, -np.inf)
