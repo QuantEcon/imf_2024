@@ -62,7 +62,7 @@ def create_overborrowing_model(
         ω=0.31,              # Share for tradables
         κ=0.3235,            # Constraint parameter
         r=0.04,              # Interest rate
-        b_grid_size=20,     # Bond grid size, increase to 800
+        b_grid_size=250,     # Bond grid size
         b_grid_min=-1.02,    # Bond grid min
         b_grid_max=-0.2      # Bond grid max (originally -0.6 to match fig)
     ):    
@@ -127,7 +127,27 @@ def generate_initial_H(model, at_constraint=False):
 @jit(parallel=True)
 def T(model, v, H):
     """
-    Bellman operator.  The value function indices have the form
+    Bellman operator
+
+        Tv(b, B, y_t, y_n) = max_{b'} { 
+            w(c, y_n) + 
+            Σ_{y_t', y_n'} v(b', H(B, y), y_t', y_n') Q(y_t, y_n, y_t', y_n')
+          }
+
+    subject to
+
+        c = (1 + r) b + y_t - b'
+
+    and 
+
+        - κ (P y_n + y_t) <= b' <= (1 + r) b + y_t
+    
+    where prices are determined by
+
+        C = (1 + r) * B + y_t - Bp
+        P = ((1 - ω) / ω) * (C / y_n)**(η + 1)
+
+    The value function indices are written as
 
         v = v[i_b, i_B, i_y_t, i_y_n]
 

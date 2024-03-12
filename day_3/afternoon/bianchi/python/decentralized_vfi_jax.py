@@ -9,6 +9,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from decentralized_vfi_numba import create_overborrowing_model, solve_for_equilibrium
 
+#jax.config.update("jax_enable_x64", True)
 
 @jax.jit
 def d_infty(x, y):
@@ -82,7 +83,15 @@ def generate_initial_H(parameters, sizes, arrays, at_constraint=False):
     return _H_no_constraint_B(b_grid, sizes)
 
 @jax.jit
-def T_gen(v, H, parameters, arrays, i_b, i_B, i_y_t, i_y_n):
+def T_generator(v, H, parameters, arrays, i_b, i_B, i_y_t, i_y_n):
+    """
+    Given current state (b, B, y_t, y_n) with indices (i_b, i_B, i_y_t, i_y_n),
+    compute the unmaximized right hand side (RHS) of the Bellman equation as a
+    function of the next period choice b'.  
+
+    The function returns the RHS of the Bellman equation as a vector of values,
+    one for each b' in the grid.
+    """
     σ, η, β, ω, κ, r = parameters
     b_grid, y_t_nodes, y_n_nodes, Q = arrays
     Bp = H[i_B, i_y_t, i_y_n]
@@ -101,18 +110,22 @@ def T_gen(v, H, parameters, arrays, i_b, i_B, i_y_t, i_y_n):
     _t1 = b_grid <= (1 + r) * b + y_t
     return jnp.where(jnp.logical_and(_t, _t1), current_val, -jnp.inf)
 
-T_gen_n = jax.vmap(T_gen, in_axes=(None, None, None, None, None, None, None, 0))
-T_gen_n_t = jax.vmap(T_gen_n, in_axes=(None, None, None, None, None, None, 0, None))
-T_gen_y_n_B = jax.vmap(T_gen_n_t, in_axes=(None, None, None, None, None, 0, None, None))
-T_gen_y_n_B_b = jax.vmap(T_gen_y_n_B, in_axes=(None, None, None, None, 0, None, None, None))
+T_vec_1 = jax.vmap(T_generator, 
+    in_axes=(None, None, None, None, None, None, None, 0))
+T_vec_2 = jax.vmap(T_vec_1, 
+    in_axes=(None, None, None, None, None, None, 0, None))
+T_vec_3 = jax.vmap(T_vec_2, 
+    in_axes=(None, None, None, None, None, 0, None, None))
+T_vectorized = jax.vmap(T_vec_3, 
+    in_axes=(None, None, None, None, 0, None, None, None))
 
 
 def T(parameters, sizes, arrays, v, H):
     b_size, y_size = sizes
     b_grid, y_t_nodes, y_n_nodes, Q = arrays
-    val = T_gen_y_n_B_b(v, H, parameters, arrays,
-                         jnp.arange(b_size), jnp.arange(b_size),
-                         jnp.arange(y_size), jnp.arange(y_size))
+    b_indices, y_indices = jnp.arange(b_size), jnp.arange(y_size)
+    val = T_vectorized(v, H, parameters, arrays,
+                         b_indices, b_indices, y_indices, y_indices)
     return jnp.max(val, axis=-1), b_grid[jnp.argmax(val, axis=-1)]
 
 T = jax.jit(T, static_argnums=(1,))
@@ -139,7 +152,7 @@ def vfi(parameters, sizes, arrays, H, max_iter=10_000, tol=1e-5):
     error, i, v_new, bp_policy = jax.lax.while_loop(cond_fun, body_fun,
                                                     (tol+1, 0, v, v))
 
-    return v_new, bp_policy
+    return v_new, bp_policy, i
 
 vfi = jax.jit(vfi, static_argnums=(1,))
 
@@ -149,9 +162,10 @@ def update_H(parameters, sizes, arrays, H, α):
 
     """
     b_size, y_size = sizes
-    _, bp_policy = vfi(parameters, sizes, arrays, H)
-    b_range = jnp.arange(b_size)
-    return α * bp_policy[b_range, b_range,:, :] + (1 - α) * H
+    _, bp_policy, vfi_num_iter = vfi(parameters, sizes, arrays, H)
+    b_indices = jnp.arange(b_size)
+    new_H = α * bp_policy[b_indices, b_indices, :, :] + (1 - α) * H
+    return new_H, vfi_num_iter
 
 update_H = jax.jit(update_H, static_argnums=(1,))
 
@@ -166,7 +180,8 @@ def solve_for_equilibrium_jax(parameters, sizes, arrays,
     error = tol + 1
     i = 0
     while error > tol and i < max_iter:
-        H_new = update_H(parameters, sizes, arrays, H, α)
+        H_new, vfi_num_iter = update_H(parameters, sizes, arrays, H, α)
+        print(f"VFI terminated after {vfi_num_iter} iterations.")
         error = d_infty(H, H_new)
         print(f"Updated H at iteration {i} with error {error}.")
         H = H_new
@@ -182,18 +197,18 @@ H_jax = solve_for_equilibrium_jax(parameters, sizes, arrays)
 jax_out_time = time.time()
 
 np_in_time = time.time()
-H_np = solve_for_equilibrium(numpy_model)
+#H_np = solve_for_equilibrium(numpy_model)
 np_out_time = time.time()
 
 print("JAX time:", jax_out_time-jax_in_time)
 print("numpy time:", np_out_time-np_in_time)
 
 # Uncomment for plotting
-# b_size, y_size = sizes
-# b_grid, y_t_nodes, y_n_nodes, Q = arrays
+b_size, y_size = sizes
+b_grid, y_t_nodes, y_n_nodes, Q = arrays
 
-# fig, ax = plt.subplots()
-# for i_y in range(y_size): 
-#     ax.plot(b_grid, H_jax[:, i_y])
-# plt.savefig('jax1.png')
-# plt.show()
+fig, ax = plt.subplots()
+for i_y in range(y_size): 
+ ax.plot(b_grid, H_jax[:, i_y])
+plt.show()
+
