@@ -89,9 +89,9 @@ def T_gen(v, H, parameters, arrays, i_b, i_B, i_y_t, i_y_n):
     i_Bp = jnp.searchsorted(b_grid, Bp)
     y_t = y_t_nodes[i_y_t]
     y_n = y_n_nodes[i_y_n]
-    b = b_grid[i_b]
+    B, b = b_grid[i_B], b_grid[i_b]
     # compute price of nontradables using aggregates
-    C = (1 + r) * b_grid[i_B] + y_t - Bp
+    C = (1 + r) * B + y_t - Bp
     P = ((1 - ω) / ω) * (C / y_n)**(η + 1)
     c = (1 + r) * b + y_t - b_grid
     current_utility = w(parameters, c, y_n)
@@ -99,7 +99,7 @@ def T_gen(v, H, parameters, arrays, i_b, i_B, i_y_t, i_y_n):
     current_val = current_utility + β * EV
     _t = - κ * (P * y_n + y_t) <= b_grid
     _t1 = b_grid <= (1 + r) * b + y_t
-    return jnp.where(_t & _t1, current_val, -jnp.inf)
+    return jnp.where(jnp.logical_and(_t, _t1), current_val, -jnp.inf)
 
 T_gen_n = jax.vmap(T_gen, in_axes=(None, None, None, None, None, None, None, 0))
 T_gen_n_t = jax.vmap(T_gen_n, in_axes=(None, None, None, None, None, None, 0, None))
@@ -109,10 +109,11 @@ T_gen_y_n_B_b = jax.vmap(T_gen_y_n_B, in_axes=(None, None, None, None, 0, None, 
 
 def T(parameters, sizes, arrays, v, H):
     b_size, y_size = sizes
+    b_grid, y_t_nodes, y_n_nodes, Q = arrays
     val = T_gen_y_n_B_b(v, H, parameters, arrays,
                          jnp.arange(b_size), jnp.arange(b_size),
                          jnp.arange(y_size), jnp.arange(y_size))
-    return jnp.max(val, axis=-1), jnp.argmax(val, axis=-1)
+    return jnp.max(val, axis=-1), b_grid[jnp.argmax(val, axis=-1)]
 
 T = jax.jit(T, static_argnums=(1,))
 
@@ -124,7 +125,6 @@ def vfi(parameters, sizes, arrays, H, max_iter=10_000, tol=1e-5):
     """
     b_size, y_size = sizes
     v = jnp.ones((b_size, b_size, y_size, y_size))
-    bp_policy_init =jnp.zeros((b_size, b_size, y_size, y_size), dtype=jnp.int32)
 
     def cond_fun(vals):
         error, i, v, bp = vals
@@ -137,7 +137,7 @@ def vfi(parameters, sizes, arrays, H, max_iter=10_000, tol=1e-5):
         return error, i+1, v_new, bp_policy
 
     error, i, v_new, bp_policy = jax.lax.while_loop(cond_fun, body_fun,
-                                                    (tol+1, 0, v, bp_policy_init))
+                                                    (tol+1, 0, v, v))
 
     return v_new, bp_policy
 
@@ -156,12 +156,12 @@ def update_H(parameters, sizes, arrays, H, α):
 update_H = jax.jit(update_H, static_argnums=(1,))
 
 
-def solve_for_equilibrium(α=0.05, tol=0.004, max_iter=500):
+def solve_for_equilibrium(parameters, sizes, arrays,
+                          α=0.05, tol=0.004, max_iter=500):
     """
     Compute equilibrium law of motion.
 
     """
-    parameters, sizes, arrays = convert_overborrowing_model_to_jax()
     H = generate_initial_H(parameters, sizes, arrays)
     error = tol + 1
     i = 0
@@ -175,4 +175,14 @@ def solve_for_equilibrium(α=0.05, tol=0.004, max_iter=500):
         print("Warning: Equilibrium search iteration hit upper bound.")
     return H
 
-solve_for_equilibrium()
+parameters, sizes, arrays = convert_overborrowing_model_to_jax()
+H = solve_for_equilibrium(parameters, sizes, arrays)
+
+b_size, y_size = sizes
+b_grid, y_t_nodes, y_n_nodes, Q = arrays
+
+fig, ax = plt.subplots()
+for i_y in range(y_size): 
+    ax.plot(b_grid, H[:, i_y])
+plt.savefig('jax1.png')
+plt.show()
