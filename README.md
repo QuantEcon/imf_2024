@@ -47,9 +47,10 @@ will join remotely and run a one hour session on the 27th.
   - Python and the AI revolution
   - A brief tour of Python's massive scientific computing ecosystem
 * Monday afternoon: Python basics
-  - Elementary Python (e.g., everything's an object)
-  - NumPy basics
+  - Core Python 
+  - NumPy / SciPy / Matplotlib / Numba
 * Tuesday morning: Markov chains in Python
+  - Basic concepts
   - Linear algebra methods
   - Simulation
   - Continuous state dynamics
@@ -58,11 +59,12 @@ will join remotely and run a one hour session on the 27th.
   - Household problems
   - Dynamic programming with JAX
 * Wednesday morning: Heterogeneous agents
-  - The Hopenhayn model and the firm size distribution
+  - Heterogenous firms
   - The Aiyagari model
 * Wednesday afternoon: Further applications
   - Sovereign default
   - The Bianchi overborrowing model?
+
 
 ## Software
 
