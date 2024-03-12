@@ -3,11 +3,11 @@ Bianchi Overborrowing Model. See the Numba version for details.
 
 """
 
+import time
 import jax
 import jax.numpy as jnp
-import numpy as np
 import matplotlib.pyplot as plt
-from decentralized_vfi_numba import create_overborrowing_model
+from decentralized_vfi_numba import create_overborrowing_model, solve_for_equilibrium
 
 
 @jax.jit
@@ -15,7 +15,7 @@ def d_infty(x, y):
     return jnp.max(jnp.abs(x - y))
 
 
-def convert_overborrowing_model_to_jax(numpy_model=create_overborrowing_model()):    
+def convert_overborrowing_model_to_jax(numpy_model):    
     """
     Create a JAX-centric version of the overborrowing model.  Use JAX device
     arrays instead of NumPy arrays and separate data so that some components can
@@ -156,7 +156,7 @@ def update_H(parameters, sizes, arrays, H, α):
 update_H = jax.jit(update_H, static_argnums=(1,))
 
 
-def solve_for_equilibrium(parameters, sizes, arrays,
+def solve_for_equilibrium_jax(parameters, sizes, arrays,
                           α=0.05, tol=0.004, max_iter=500):
     """
     Compute equilibrium law of motion.
@@ -175,14 +175,25 @@ def solve_for_equilibrium(parameters, sizes, arrays,
         print("Warning: Equilibrium search iteration hit upper bound.")
     return H
 
-parameters, sizes, arrays = convert_overborrowing_model_to_jax()
-H = solve_for_equilibrium(parameters, sizes, arrays)
+numpy_model = create_overborrowing_model()
+parameters, sizes, arrays = convert_overborrowing_model_to_jax(numpy_model)
+jax_in_time = time.time()
+H_jax = solve_for_equilibrium_jax(parameters, sizes, arrays)
+jax_out_time = time.time()
 
-b_size, y_size = sizes
-b_grid, y_t_nodes, y_n_nodes, Q = arrays
+np_in_time = time.time()
+H_np = solve_for_equilibrium(numpy_model)
+np_out_time = time.time()
 
-fig, ax = plt.subplots()
-for i_y in range(y_size): 
-    ax.plot(b_grid, H[:, i_y])
-plt.savefig('jax1.png')
-plt.show()
+print("JAX time:", jax_out_time-jax_in_time)
+print("numpy time:", np_out_time-np_in_time)
+
+# Uncomment for plotting
+# b_size, y_size = sizes
+# b_grid, y_t_nodes, y_n_nodes, Q = arrays
+
+# fig, ax = plt.subplots()
+# for i_y in range(y_size): 
+#     ax.plot(b_grid, H_jax[:, i_y])
+# plt.savefig('jax1.png')
+# plt.show()
