@@ -3,15 +3,16 @@ Bianchi Overborrowing Model. See the Numba version for details.
 
 """
 
+import time
 import jax
 import jax.numpy as jnp
-import numpy as np
-import quantecon as qe
 import matplotlib.pyplot as plt
+from decentralized_vfi_numba import create_overborrowing_model, solve_for_equilibrium
 
 
+@jax.jit
 def d_infty(x, y):
-    return np.max(np.abs(x - y))
+    return jnp.max(jnp.abs(x - y))
 
 
 def convert_overborrowing_model_to_jax(numpy_model):    
@@ -23,13 +24,14 @@ def convert_overborrowing_model_to_jax(numpy_model):
     Uses default parameters from the NumPy version.
     """
     m = numpy_model
-    parameters = m.σ, m.η, m.β, m.ω, m.κ, m.R
+    parameters = m.σ, m.η, m.β, m.ω, m.κ, m.r
     sizes = m.b_size, m.y_size
-    arrays = tuple(map(np.array, (m.b_grid, m.y_t_nodes, m.y_n_nodes, m.P)))
+    arrays = tuple(map(jnp.array, (m.b_grid, m.y_t_nodes, m.y_n_nodes, m.Q)))
     return parameters, sizes, arrays
-    
 
-def w(model, c, y_n):
+
+@jax.jit
+def w(parameters, c, y_n):
     """ 
     Current utility when c_t = c and c_n = y_n.
 
@@ -38,115 +40,133 @@ def w(model, c, y_n):
         w(c, y_n) := a^(1 - σ) / (1 - σ)
 
     """
-    parameters, sizes, arrays = model
-    σ, η, β, ω, κ, R = parameters
+    σ, η, β, ω, κ, r = parameters
     a = (ω * c**(-η) + (1 - ω) * y_n**(-η))**(-1/η)
     return a**(1 - σ) / (1 - σ)
 
 
-def generate_initial_H(model):
+@jax.jit
+def _H_at_constraint(parameters, B, y_t, y_n):
+    σ, η, β, ω, κ, r = parameters
+    c = B * (1 + r) + y_t - B                  
+    P = ((1 - ω) / ω) * c**(1 + η)
+    return - κ * (P * y_n + y_t)
+
+_H_at_constraint_n = jax.vmap(_H_at_constraint,
+                              in_axes=(None, None, None, 0))
+_H_at_constraint_n_t = jax.vmap(_H_at_constraint_n,
+                              in_axes=(None, None, 0, None))
+_H_at_constraint_n_t_B = jax.vmap(_H_at_constraint_n_t,
+                              in_axes=(None, 0, None, None))
+
+
+
+def _H_no_constraint(B, sizes):
+    b_size, y_size = sizes
+    return jnp.full((y_size, y_size), B)
+
+_H_no_constraint = jax.jit(_H_no_constraint, static_argnums=(1,))
+_H_no_constraint_B = jax.vmap(_H_no_constraint,
+                              in_axes=(0, None))
+
+
+
+def generate_initial_H(parameters, sizes, arrays, at_constraint=False):
     """
     Compute an initial guess for H. Use a hold-steady rule.
 
     """
-    parameters, sizes, arrays = model
-    b_size, y_size = sizes
-    H = np.reshape(b_grid, (b_size, y_size, y_size)) # b' = b
-    return H
+    b_grid, y_t_nodes, y_n_nodes, Q = arrays
+    if at_constraint:
+        return _H_at_constraint_n_t_B(parameters, b_grid, y_t_nodes, y_n_nodes)
+    return _H_no_constraint_B(b_grid, sizes)
 
-
-def T(model, v, H):
-    """
-    The Bellman operator.
-
-    """
-    parameters, sizes, arrays = model
-    σ, η, β, ω, κ, R = parameters
-    b_size, y_size = sizes
-    b_grid, y_nodes = arrays
-
-    # Expand dimension of arrays
-    b   = np.reshape(b_grid,    (b_size, 1, 1, 1, 1))
-    B   = np.reshape(b_grid,    (1, b_size, 1, 1, 1))
-    y_t = np.reshape(y_t_nodes, (1, 1, y_size, 1, 1))
-    y_n = np.reshape(y_n_nodes, (1, 1, 1, y_size, 1))
-    bp  = np.reshape(b_grid,    (1, 1, 1, 1, b_size))
-
-    # Provide some index arrays of the same shape
-    b_idx   = np.reshape(range(b_size),    (b_size, 1, 1, 1, 1))
-
-    # Construct Bp and its indices associated with H
-    Bp     = np.reshape(H, (1, b_size, y_size, y_size, 1))
-    Bp_idx = np.searchsorted(b_grid, Bp) 
-
+@jax.jit
+def T_gen(v, H, parameters, arrays, i_b, i_B, i_y_t, i_y_n):
+    σ, η, β, ω, κ, r = parameters
+    b_grid, y_t_nodes, y_n_nodes, Q = arrays
+    Bp = H[i_B, i_y_t, i_y_n]
+    i_Bp = jnp.searchsorted(b_grid, Bp)
+    y_t = y_t_nodes[i_y_t]
+    y_n = y_n_nodes[i_y_n]
+    B, b = b_grid[i_B], b_grid[i_b]
     # compute price of nontradables using aggregates
-    C = R * B + y_t - Bp
+    C = (1 + r) * B + y_t - Bp
     P = ((1 - ω) / ω) * (C / y_n)**(η + 1)
+    c = (1 + r) * b + y_t - b_grid
+    current_utility = w(parameters, c, y_n)
+    EV = jnp.sum(v[:, i_Bp, :, :] * Q[i_y_t, i_y_n, :, :], axis=(1, 2))
+    current_val = current_utility + β * EV
+    _t = - κ * (P * y_n + y_t) <= b_grid
+    _t1 = b_grid <= (1 + r) * b + y_t
+    return jnp.where(jnp.logical_and(_t, _t1), current_val, -jnp.inf)
 
-    c = R * b + y_t - bp
-    u = w(model, c, y_n)
-
-    constraint_holds = - κ * (P * y_n + y_t) <= bp <= R * b + y_t
-
-    v = np.resize(v, ?)
-    EV = np.sum(v * Q, axis=?)
-
-    W = np.where(constraint_holds, u + β * EV, -np.inf)
-    v_new       = np.max(W, axis=?)
-    bp_v_greedy = np.argmax(W, axis=?)
-
-    return v_new, bp_v_greedy
+T_gen_n = jax.vmap(T_gen, in_axes=(None, None, None, None, None, None, None, 0))
+T_gen_n_t = jax.vmap(T_gen_n, in_axes=(None, None, None, None, None, None, 0, None))
+T_gen_y_n_B = jax.vmap(T_gen_n_t, in_axes=(None, None, None, None, None, 0, None, None))
+T_gen_y_n_B_b = jax.vmap(T_gen_y_n_B, in_axes=(None, None, None, None, 0, None, None, None))
 
 
-def vfi(model, H, v_init=None, max_iter=10_000, tol=1e-5, verbose=False):
+def T(parameters, sizes, arrays, v, H):
+    b_size, y_size = sizes
+    b_grid, y_t_nodes, y_n_nodes, Q = arrays
+    val = T_gen_y_n_B_b(v, H, parameters, arrays,
+                         jnp.arange(b_size), jnp.arange(b_size),
+                         jnp.arange(y_size), jnp.arange(y_size))
+    return jnp.max(val, axis=-1), b_grid[jnp.argmax(val, axis=-1)]
+
+T = jax.jit(T, static_argnums=(1,))
+
+
+def vfi(parameters, sizes, arrays, H, max_iter=10_000, tol=1e-5):
     """
     Solve for the value function and update rule given H.
 
     """
-    σ, η, β, ω, κ, R, b_grid, y_nodes, b_size, y_size, Q = model
-    error = tol + 1
-    i = 0
-    if v_init is None:
-        v_init = np.ones((b_size, b_size, y_size))
-    v = v_init
+    b_size, y_size = sizes
+    v = jnp.ones((b_size, b_size, y_size, y_size))
 
-    while error > tol and i < max_iter:
-        v_new, bp_policy = T(model, v, H)
+    def cond_fun(vals):
+        error, i, v, bp = vals
+        return (error > tol) & (i < max_iter)
+    
+    def body_fun(vals):
+        _, i, v, bp = vals
+        v_new, bp_policy = T(parameters, sizes, arrays, v, H)
         error = d_infty(v_new, v)
-        v = v_new
-        i += 1
+        return error, i+1, v_new, bp_policy
 
-    if verbose:
-        print(f"VFI terminated after {i} iterations.")
+    error, i, v_new, bp_policy = jax.lax.while_loop(cond_fun, body_fun,
+                                                    (tol+1, 0, v, v))
 
     return v_new, bp_policy
 
-def update_H(model, H, α):
+vfi = jax.jit(vfi, static_argnums=(1,))
+
+def update_H(parameters, sizes, arrays, H, α):
     """
     Update guess of the equilibrium update rule for bonds
 
     """
-    σ, η, β, ω, κ, R, b_grid, y_nodes, b_size, y_size, Q = model
-    H_new = np.empty_like(H)
-    v_new, bp_policy = vfi(model, H, verbose=True)
-    for i_B in range(b_size):
-        for i_y in range(y_size):
-            H_new[i_B, i_y] = α * bp_policy[i_B, i_B, i_y] + \
-                             (1 - α) * H[i_B, i_y]
-    return H_new
+    b_size, y_size = sizes
+    _, bp_policy = vfi(parameters, sizes, arrays, H)
+    b_range = jnp.arange(b_size)
+    return α * bp_policy[b_range, b_range,:, :] + (1 - α) * H
+
+update_H = jax.jit(update_H, static_argnums=(1,))
 
 
-def solve_for_equilibrium(model, α=0.05, tol=0.004, max_iter=500):
+def solve_for_equilibrium_jax(parameters, sizes, arrays,
+                          α=0.05, tol=0.004, max_iter=500):
     """
     Compute equilibrium law of motion.
 
     """
-    σ, η, β, ω, κ, R, b_grid, y_nodes, b_size, y_size, Q = model
-    H = generate_initial_H(model)
+    H = generate_initial_H(parameters, sizes, arrays)
     error = tol + 1
     i = 0
     while error > tol and i < max_iter:
-        H_new = update_H(model, H, α)
+        H_new = update_H(parameters, sizes, arrays, H, α)
         error = d_infty(H, H_new)
         print(f"Updated H at iteration {i} with error {error}.")
         H = H_new
@@ -155,3 +175,25 @@ def solve_for_equilibrium(model, α=0.05, tol=0.004, max_iter=500):
         print("Warning: Equilibrium search iteration hit upper bound.")
     return H
 
+numpy_model = create_overborrowing_model()
+parameters, sizes, arrays = convert_overborrowing_model_to_jax(numpy_model)
+jax_in_time = time.time()
+H_jax = solve_for_equilibrium_jax(parameters, sizes, arrays)
+jax_out_time = time.time()
+
+np_in_time = time.time()
+H_np = solve_for_equilibrium(numpy_model)
+np_out_time = time.time()
+
+print("JAX time:", jax_out_time-jax_in_time)
+print("numpy time:", np_out_time-np_in_time)
+
+# Uncomment for plotting
+# b_size, y_size = sizes
+# b_grid, y_t_nodes, y_n_nodes, Q = arrays
+
+# fig, ax = plt.subplots()
+# for i_y in range(y_size): 
+#     ax.plot(b_grid, H_jax[:, i_y])
+# plt.savefig('jax1.png')
+# plt.show()
