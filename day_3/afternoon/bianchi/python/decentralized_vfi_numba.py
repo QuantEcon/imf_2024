@@ -60,7 +60,7 @@ def create_overborrowing_model(
         ω=0.31,              # Share for tradables
         κ=0.3235,            # Constraint parameter
         r=0.04,              # Interest rate
-        b_grid_size=20,     # Bond grid size
+        b_grid_size=250,     # Bond grid size
         b_grid_min=-1.02,    # Bond grid min
         b_grid_max=-0.2      # Bond grid max (originally -0.6 to match fig)
     ):    
