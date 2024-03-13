@@ -28,9 +28,7 @@ Vector / function versions include
 """
 
 import numpy as np
-import quantecon as qe
 from numba import jit, prange
-from scipy.io import loadmat
 from collections import namedtuple
 import matplotlib.pyplot as plt
 
@@ -62,7 +60,7 @@ def create_overborrowing_model(
         ω=0.31,              # Share for tradables
         κ=0.3235,            # Constraint parameter
         r=0.04,              # Interest rate
-        b_grid_size=250,     # Bond grid size
+        b_grid_size=20,     # Bond grid size
         b_grid_min=-1.02,    # Bond grid min
         b_grid_max=-0.2      # Bond grid max (originally -0.6 to match fig)
     ):    
@@ -157,7 +155,7 @@ def T(model, v, H):
     v_new = np.empty_like(v)
     # Storage for greedy policy
     bp_v_greedy = np.empty_like(v)
-    
+
     for i_y_t in prange(y_size):
         y_t = y_t_nodes[i_y_t]
         for i_y_n in range(y_size):
@@ -172,6 +170,7 @@ def T(model, v, H):
                 # Loop
                 for i_b, b in enumerate(b_grid):
                     max_val = -np.inf
+                    bp_maximizer = 0
                     # Search over bp choices
                     for i_bp, bp in enumerate(b_grid):
                         # Impose feasibility
@@ -179,11 +178,7 @@ def T(model, v, H):
                             c = (1 + r) * b + y_t - bp
                             current_utility = w(model, c, y_n) 
                             # Compute expected value tomorrow
-                            exp = 0.0
-                            for i_y_tp in range(y_size):
-                                for i_y_np in range(y_size):
-                                    exp += v[i_bp, i_Bp, i_y_tp, i_y_np] \
-                                            * Q[i_y_t, i_y_n, i_y_tp, i_y_np]
+                            exp = np.sum(v[i_bp, i_Bp, :, :] * Q[i_y_t, i_y_n, :, :])
                             current_val = current_utility + β * exp
                             if current_val > max_val:
                                 max_val = current_val
@@ -223,15 +218,9 @@ def update_H(model, H, α):
 
     """
     σ, η, β, ω, κ, r, b_grid, y_t_nodes, y_n_nodes, b_size, y_size, Q = model
-    H_new = np.empty_like(H)
     v_new, bp_policy = vfi(model, H, verbose=True)
-    for i_B in range(b_size):
-        for i_y_t in range(y_size):
-            for i_y_n in range(y_size):
-                H_new[i_B, i_y_t, i_y_n] = α * \
-                        bp_policy[i_B, i_B, i_y_t, i_y_n] + \
-                             (1 - α) * H[i_B, i_y_t, i_y_n]
-    return H_new
+    b_indices = np.arange(b_size)
+    return α * bp_policy[b_indices, b_indices, :, :] + (1 - α) * H
 
 
 def solve_for_equilibrium(model, α=0.1, tol=0.004, max_iter=500):
@@ -254,6 +243,10 @@ def solve_for_equilibrium(model, α=0.1, tol=0.004, max_iter=500):
     return H
 
 
-#m = create_overborrowing_model()
-#σ, η, β, ω, κ, r, b_grid, y_t_nodes, y_n_nodes, b_size, y_size, Q = m
-#solve_for_equilibrium(m)
+# m = create_overborrowing_model()
+# σ, η, β, ω, κ, r, b_grid, y_t_nodes, y_n_nodes, b_size, y_size, Q = m
+# H = solve_for_equilibrium(m)
+# fig, ax = plt.subplots()
+# for i_y in range(y_size): 
+#    ax.plot(b_grid, H[:, i_y])
+# plt.show()
