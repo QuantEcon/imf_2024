@@ -62,7 +62,7 @@ def create_overborrowing_model(
         ω=0.31,              # Share for tradables
         κ=0.3235,            # Constraint parameter
         r=0.04,              # Interest rate
-        b_grid_size=250,     # Bond grid size
+        b_size=250,          # Bond grid size
         b_grid_min=-1.02,    # Bond grid min
         b_grid_max=-0.2      # Bond grid max (originally -0.6 to match fig)
     ):    
@@ -79,13 +79,13 @@ def create_overborrowing_model(
     # Read in data using parameters estimated in Yamada (2023)
     y_t_nodes, y_n_nodes, Q = discretize_income_var(single_index=False)
     # Set up grid for bond holdings
-    b_grid = np.linspace(b_grid_min, b_grid_max, b_grid_size)
+    b_grid = np.linspace(b_grid_min, b_grid_max, b_size)
     # Gross interest rate
 
     return Model(σ=σ, η=η, β=β, ω=ω, κ=κ, r=r, 
                  b_grid=b_grid, 
                  y_t_nodes=y_t_nodes, y_n_nodes=y_n_nodes,
-                 b_size=b_grid_size, y_size=len(Q), Q=Q)
+                 b_size=b_size, y_size=len(Q), Q=Q)
 
 @jit
 def w(model, c, y_n):

@@ -82,15 +82,14 @@ def generate_initial_H(parameters, sizes, arrays, at_constraint=False):
         return _H_at_constraint_n_t_B(parameters, b_grid, y_t_nodes, y_n_nodes)
     return _H_no_constraint_B(b_grid, sizes)
 
+
+
 @jax.jit
-def T_generator(v, H, parameters, arrays, i_b, i_B, i_y_t, i_y_n):
+def T_generator(v, H, parameters, arrays, i_b, i_B, i_y_t, i_y_n, i_bp):
     """
     Given current state (b, B, y_t, y_n) with indices (i_b, i_B, i_y_t, i_y_n),
     compute the unmaximized right hand side (RHS) of the Bellman equation as a
-    function of the next period choice b'.  
-
-    The function returns the RHS of the Bellman equation as a vector of values,
-    one for each b' in the grid.
+    function of the next period choice bp = b'.  
     """
     σ, η, β, ω, κ, r = parameters
     b_grid, y_t_nodes, y_n_nodes, Q = arrays
@@ -98,26 +97,30 @@ def T_generator(v, H, parameters, arrays, i_b, i_B, i_y_t, i_y_n):
     i_Bp = jnp.searchsorted(b_grid, Bp)
     y_t = y_t_nodes[i_y_t]
     y_n = y_n_nodes[i_y_n]
-    B, b = b_grid[i_B], b_grid[i_b]
+    B, b, bp = b_grid[i_B], b_grid[i_b], b_grid[i_bp]
     # compute price of nontradables using aggregates
     C = (1 + r) * B + y_t - Bp
     P = ((1 - ω) / ω) * (C / y_n)**(η + 1)
-    c = (1 + r) * b + y_t - b_grid
+    c = (1 + r) * b + y_t - bp
     current_utility = w(parameters, c, y_n)
-    EV = jnp.sum(v[:, i_Bp, :, :] * Q[i_y_t, i_y_n, :, :], axis=(1, 2))
+    EV = jnp.sum(v[i_bp, i_Bp, :, :] * Q[i_y_t, i_y_n, :, :])
     current_val = current_utility + β * EV
-    _t = - κ * (P * y_n + y_t) <= b_grid
-    _t1 = b_grid <= (1 + r) * b + y_t
+    _t = - κ * (P * y_n + y_t) <= bp
+    _t1 = bp <= (1 + r) * b + y_t
     return jnp.where(jnp.logical_and(_t, _t1), current_val, -jnp.inf)
 
-T_vec_1 = jax.vmap(T_generator, 
-    in_axes=(None, None, None, None, None, None, None, 0))
+
+# Vectorize over the control bp and all the current states
+T_vec_1 = jax.vmap(T_generator,
+    in_axes=(None, None, None, None, None, None, None, None, 0))
 T_vec_2 = jax.vmap(T_vec_1, 
-    in_axes=(None, None, None, None, None, None, 0, None))
+    in_axes=(None, None, None, None, None, None, None, 0, None))
 T_vec_3 = jax.vmap(T_vec_2, 
-    in_axes=(None, None, None, None, None, 0, None, None))
-T_vectorized = jax.vmap(T_vec_3, 
-    in_axes=(None, None, None, None, 0, None, None, None))
+    in_axes=(None, None, None, None, None, None, 0, None, None))
+T_vec_4 = jax.vmap(T_vec_3, 
+    in_axes=(None, None, None, None, None, 0, None, None, None))
+T_vectorized = jax.vmap(T_vec_4, 
+    in_axes=(None, None, None, None, 0, None, None, None, None))
 
 
 def T(parameters, sizes, arrays, v, H):
@@ -125,7 +128,7 @@ def T(parameters, sizes, arrays, v, H):
     b_grid, y_t_nodes, y_n_nodes, Q = arrays
     b_indices, y_indices = jnp.arange(b_size), jnp.arange(y_size)
     val = T_vectorized(v, H, parameters, arrays,
-                         b_indices, b_indices, y_indices, y_indices)
+                     b_indices, b_indices, y_indices, y_indices, b_indices)
     return jnp.max(val, axis=-1), b_grid[jnp.argmax(val, axis=-1)]
 
 T = jax.jit(T, static_argnums=(1,))
@@ -155,6 +158,7 @@ def vfi(parameters, sizes, arrays, H, max_iter=10_000, tol=1e-5):
     return v_new, bp_policy, i
 
 vfi = jax.jit(vfi, static_argnums=(1,))
+
 
 def update_H(parameters, sizes, arrays, H, α):
     """
@@ -209,6 +213,7 @@ b_grid, y_t_nodes, y_n_nodes, Q = arrays
 
 fig, ax = plt.subplots()
 for i_y in range(y_size): 
- ax.plot(b_grid, H_jax[:, i_y])
+    ax.plot(b_grid, H_jax[:, i_y])
+ax.plot(b_grid, b_grid, color='black', ls='--')
 plt.show()
 
