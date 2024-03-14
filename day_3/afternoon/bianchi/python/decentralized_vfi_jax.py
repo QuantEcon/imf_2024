@@ -143,12 +143,15 @@ def T_generator(v, H, parameters, arrays, i_b, i_B, i_y_t, i_y_n, i_bp):
     y_t = y_t_nodes[i_y_t]
     y_n = y_n_nodes[i_y_n]
     B, b, bp = b_grid[i_B], b_grid[i_b], b_grid[i_bp]
-    # compute price of nontradables using aggregates
+    # Compute price of nontradables using aggregates
     C = (1 + r) * B + y_t - Bp
     P = ((1 - ω) / ω) * (C / y_n)**(η + 1)
+    # Compute household flow utility
     c = (1 + r) * b + y_t - bp
     utility = w(parameters, c, y_n)
+    # Compute expected value (continuation)
     EV = jnp.sum(v[i_bp, i_Bp, :, :] * Q[i_y_t, i_y_n, :, :])
+    # Set up constraints and evaluate 
     credit_constraint_holds = - κ * (P * y_n + y_t) <= bp
     budget_constraint_holds = bp <= (1 + r) * b + y_t
     return jnp.where(jnp.logical_and(credit_constraint_holds, 
@@ -183,13 +186,12 @@ def T(parameters, sizes, arrays, v, H):
 T = jax.jit(T, static_argnums=(1,))
 
 
-def vfi(parameters, sizes, arrays, H, max_iter=10_000, tol=1e-5):
+def vfi(T, v_init, max_iter=10_000, tol=1e-5):
     """
     Solve for the value function and update rule given H.
 
     """
-    b_size, y_size = sizes
-    v = jnp.ones((b_size, b_size, y_size, y_size))
+    v = v_init
 
     def cond_fun(vals):
         error, i, v, bp = vals
@@ -197,7 +199,7 @@ def vfi(parameters, sizes, arrays, H, max_iter=10_000, tol=1e-5):
     
     def body_fun(vals):
         _, i, v, bp = vals
-        v_new, bp_policy = T(parameters, sizes, arrays, v, H)
+        v_new, bp_policy = T(v)
         error = d_infty(v_new, v)
         return error, i+1, v_new, bp_policy
 
@@ -206,7 +208,7 @@ def vfi(parameters, sizes, arrays, H, max_iter=10_000, tol=1e-5):
 
     return v_new, bp_policy, i
 
-vfi = jax.jit(vfi, static_argnums=(1,))
+vfi = jax.jit(vfi, static_argnums=(0,))
 
 
 def update_H(parameters, sizes, arrays, H, α):
@@ -216,8 +218,10 @@ def update_H(parameters, sizes, arrays, H, α):
     """
     b_size, y_size = sizes
     b_indices = jnp.arange(b_size)
+    v_init = jnp.ones((b_size, b_size, y_size, y_size))
+    _T = lambda v: T(parameters, sizes, arrays, v, H)
     # Compute household response to current guess H
-    v, bp_policy, vfi_num_iter = vfi(parameters, sizes, arrays, H)
+    v, bp_policy, vfi_num_iter = vfi(_T, v_init)
     # Update guess
     new_H = α * bp_policy[b_indices, b_indices, :, :] + (1 - α) * H
     return new_H, vfi_num_iter
@@ -226,7 +230,7 @@ update_H = jax.jit(update_H, static_argnums=(1,))
 
 
 def compute_equilibrium(parameters, sizes, arrays,
-                          α=0.05, tol=0.004, max_iter=500):
+                          α=0.1, tol=0.005, max_iter=500):
     """
     Compute the equilibrium law of motion.
 
