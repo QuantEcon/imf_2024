@@ -1,29 +1,7 @@
 """
 Bianchi Overborrowing Model.
 
-Python implementation of "Overborrowing and Systemic Externalities" (AER 2011)
-by Javier Bianchi
-
-In what follows
-
-* y = (y_t, y_n) is the exogenous state process
-
-Individual states and actions are
-
-* c = consumption of tradables
-* b = household savings (bond holdings)
-* bp = b prime, household savings decision 
-
-Aggregate quantities and prices are
-
-* P = price of nontradables
-* B = aggregate savings (bond holdings)
-* C = aggregate consumption 
-
-Vector / function versions include
-
-* bp_vec represents bp(b, B, y) = household assets next period, etc.
-* H = current guess of update rule as an array of the form H(B, y)
+See the JAX version for details.
 
 """
 
@@ -34,7 +12,6 @@ from scipy.io import loadmat
 from collections import namedtuple
 import matplotlib.pyplot as plt
 
-from mc_dynamics import discretize_income_var
 
 def d_infty(x, y):
     return np.max(np.abs(x - y))
@@ -80,7 +57,6 @@ def create_overborrowing_model(
     y_t_nodes, y_n_nodes, Q = discretize_income_var(single_index=False)
     # Set up grid for bond holdings
     b_grid = np.linspace(b_grid_min, b_grid_max, b_size)
-    # Gross interest rate
 
     return Model(σ=σ, η=η, β=β, ω=ω, κ=κ, r=r, 
                  b_grid=b_grid, 

@@ -1,5 +1,30 @@
 """
-Bianchi Overborrowing Model. See the Numba version for details.
+Bianchi Overborrowing Model.
+
+Python/JAX implementation of "Overborrowing and Systemic Externalities" 
+(AER 2011) by Javier Bianchi
+
+In what follows
+
+* y = (y_t, y_n) is the exogenous state process
+
+Individual states and actions are
+
+* c = consumption of tradables
+* b = household savings (bond holdings)
+* bp = b prime, household savings decision 
+
+Aggregate quantities and prices are
+
+* P = price of nontradables
+* B = aggregate savings (bond holdings)
+* C = aggregate consumption 
+
+Vector / function versions include
+
+* bp_vec represents bp(b, B, y) = household assets next period, etc.
+* H = current guess of update rule as an array of the form H(B, y)
+
 
 """
 
@@ -7,7 +32,7 @@ import time
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
-from decentralized_vfi_numba import create_overborrowing_model, solve_for_equilibrium
+from mc_dynamics import discretize_income_var
 
 #jax.config.update("jax_enable_x64", True)
 
@@ -16,18 +41,38 @@ def d_infty(x, y):
     return jnp.max(jnp.abs(x - y))
 
 
-def convert_overborrowing_model_to_jax(numpy_model):    
+def create_overborrowing_model(
+        σ=2,                 # CRRA utility parameter
+        η=(1/0.83)-1,        # Elasticity = 0.83, η = 0.2048
+        β=0.91,              # Discount factor
+        ω=0.31,              # Share for tradables
+        κ=0.3235,            # Constraint parameter
+        r=0.04,              # Interest rate
+        b_size=250,          # Bond grid size
+        b_grid_min=-1.02,    # Bond grid min
+        b_grid_max=-0.2      # Bond grid max (originally -0.6 to match fig)
+    ):    
     """
-    Create a JAX-centric version of the overborrowing model.  Use JAX device
-    arrays instead of NumPy arrays and separate data so that some components can
-    be used as static arguments.
+    Creates an instance of the overborrowing model using default parameter
+    values from Bianchi AER 2011 with κ_n = κ_t = κ.
 
-    Uses default parameters from the NumPy version.
+    The Markov kernel Q has the interpretation
+
+        Q[i, j, ip, jp] = one step prob of moving from 
+                            (y_t[i], y_n[j]) to (y_t[ip], y_n[jp])
+
     """
-    m = numpy_model
-    parameters = m.σ, m.η, m.β, m.ω, m.κ, m.r
-    sizes = m.b_size, m.y_size
-    arrays = tuple(map(jnp.array, (m.b_grid, m.y_t_nodes, m.y_n_nodes, m.Q)))
+    # Read in data using parameters estimated in Yamada (2023)
+    y_t_nodes, y_n_nodes, Q = discretize_income_var()
+    # Shift to JAX arrays
+    y_t_nodes, y_n_nodes, Q = tuple(map(jnp.array, 
+                                        (y_t_nodes, y_n_nodes, Q)))
+    # Set up grid for bond holdings
+    b_grid = jnp.linspace(b_grid_min, b_grid_max, b_size)
+
+    parameters = σ, η, β, ω, κ, r
+    sizes = b_size, len(y_t_nodes)
+    arrays = b_grid, y_t_nodes, y_n_nodes, Q
     return parameters, sizes, arrays
 
 
@@ -102,12 +147,14 @@ def T_generator(v, H, parameters, arrays, i_b, i_B, i_y_t, i_y_n, i_bp):
     C = (1 + r) * B + y_t - Bp
     P = ((1 - ω) / ω) * (C / y_n)**(η + 1)
     c = (1 + r) * b + y_t - bp
-    current_utility = w(parameters, c, y_n)
+    utility = w(parameters, c, y_n)
     EV = jnp.sum(v[i_bp, i_Bp, :, :] * Q[i_y_t, i_y_n, :, :])
-    current_val = current_utility + β * EV
-    _t = - κ * (P * y_n + y_t) <= bp
-    _t1 = bp <= (1 + r) * b + y_t
-    return jnp.where(jnp.logical_and(_t, _t1), current_val, -jnp.inf)
+    credit_constraint_holds = - κ * (P * y_n + y_t) <= bp
+    budget_constraint_holds = bp <= (1 + r) * b + y_t
+    return jnp.where(jnp.logical_and(credit_constraint_holds, 
+                                     budget_constraint_holds), 
+                     utility + β * EV,
+                     -jnp.inf)
 
 
 # Vectorize over the control bp and all the current states
@@ -127,8 +174,10 @@ def T(parameters, sizes, arrays, v, H):
     b_size, y_size = sizes
     b_grid, y_t_nodes, y_n_nodes, Q = arrays
     b_indices, y_indices = jnp.arange(b_size), jnp.arange(y_size)
+    # Evaluate RHS of Bellman equation at all states and actions
     val = T_vectorized(v, H, parameters, arrays,
                      b_indices, b_indices, y_indices, y_indices, b_indices)
+    # Maximize over bp
     return jnp.max(val, axis=-1), b_grid[jnp.argmax(val, axis=-1)]
 
 T = jax.jit(T, static_argnums=(1,))
@@ -162,22 +211,24 @@ vfi = jax.jit(vfi, static_argnums=(1,))
 
 def update_H(parameters, sizes, arrays, H, α):
     """
-    Update guess of the equilibrium update rule for bonds
+    Update guess of the aggregate update rule.
 
     """
     b_size, y_size = sizes
-    _, bp_policy, vfi_num_iter = vfi(parameters, sizes, arrays, H)
     b_indices = jnp.arange(b_size)
+    # Compute household response to current guess H
+    v, bp_policy, vfi_num_iter = vfi(parameters, sizes, arrays, H)
+    # Update guess
     new_H = α * bp_policy[b_indices, b_indices, :, :] + (1 - α) * H
     return new_H, vfi_num_iter
 
 update_H = jax.jit(update_H, static_argnums=(1,))
 
 
-def solve_for_equilibrium_jax(parameters, sizes, arrays,
+def compute_equilibrium(parameters, sizes, arrays,
                           α=0.05, tol=0.004, max_iter=500):
     """
-    Compute equilibrium law of motion.
+    Compute the equilibrium law of motion.
 
     """
     H = generate_initial_H(parameters, sizes, arrays)
@@ -194,22 +245,19 @@ def solve_for_equilibrium_jax(parameters, sizes, arrays,
         print("Warning: Equilibrium search iteration hit upper bound.")
     return H
 
-numpy_model = create_overborrowing_model()
-parameters, sizes, arrays = convert_overborrowing_model_to_jax(numpy_model)
-jax_in_time = time.time()
-H_jax = solve_for_equilibrium_jax(parameters, sizes, arrays)
-jax_out_time = time.time()
 
-np_in_time = time.time()
-#H_np = solve_for_equilibrium(numpy_model)
-np_out_time = time.time()
+## Test
 
-print("JAX time:", jax_out_time-jax_in_time)
-print("numpy time:", np_out_time-np_in_time)
-
-# Uncomment for plotting
+model = create_overborrowing_model()
+parameters, sizes, arrays = model
 b_size, y_size = sizes
 b_grid, y_t_nodes, y_n_nodes, Q = arrays
+
+jax_in_time = time.time()
+H_jax = compute_equilibrium(parameters, sizes, arrays)
+jax_out_time = time.time()
+
+print("JAX time:", jax_out_time - jax_in_time)
 
 fig, ax = plt.subplots()
 for i_y in range(y_size): 

@@ -51,7 +51,7 @@ def generate_original(A=A2, Ω=Ω2, sim_length=1_000_000):
 
 def discretize_income_var(A=A2, Ω=Ω2, 
                           grid_size=4, 
-                          single_index=True):
+                          single_index=False):
     C = sp.linalg.sqrtm(Ω)
     rng = np.random.default_rng(12345)
     mc = qe.markov.discrete_var(A, C, 
