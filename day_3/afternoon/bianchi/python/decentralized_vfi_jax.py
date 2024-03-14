@@ -250,6 +250,76 @@ def compute_equilibrium(parameters, sizes, arrays,
     return H
 
 
+
+
+## Planner problem
+
+@jax.jit
+def planner_T_generator(v, parameters, arrays, i_b, i_y_t, i_y_n, i_bp):
+    """
+    Given current state (b, y_t, y_n) with indices (i_b, i_y_t, i_y_n),
+    compute the unmaximized right hand side (RHS) of the Bellman equation as a
+    function of the next period choice bp = b'.  
+    """
+    σ, η, β, ω, κ, r = parameters
+    b_grid, y_t_nodes, y_n_nodes, Q = arrays
+    y_t = y_t_nodes[i_y_t]
+    y_n = y_n_nodes[i_y_n]
+    b, bp = b_grid[i_b], b_grid[i_bp]
+    # Compute price of nontradables using aggregates
+    c = (1 + r) * b + y_t - bp
+    P = ((1 - ω) / ω) * (c / y_n)**(η + 1)
+    # Compute household flow utility
+    utility = w(parameters, c, y_n)
+    # Compute expected value (continuation)
+    EV = jnp.sum(v[i_bp, :, :] * Q[i_y_t, i_y_n, :, :])
+    # Set up constraints and evaluate 
+    credit_constraint_holds = - κ * (P * y_n + y_t) <= bp
+    budget_constraint_holds = bp <= (1 + r) * b + y_t
+    return jnp.where(jnp.logical_and(credit_constraint_holds, 
+                                     budget_constraint_holds), 
+                     utility + β * EV,
+                     -jnp.inf)
+
+
+# Vectorize over the control bp and all the current states
+planner_T_vec_1 = jax.vmap(planner_T_generator,
+    in_axes=(None, None, None, None, None, None, 0))
+planner_T_vec_2 = jax.vmap(planner_T_vec_1, 
+    in_axes=(None, None, None, None, None, 0, None))
+planner_T_vec_3 = jax.vmap(planner_T_vec_2, 
+    in_axes=(None, None, None, None, 0, None, None))
+planner_T_vectorized = jax.vmap(planner_T_vec_3, 
+    in_axes=(None, None, None, 0, None, None, None))
+
+
+def planner_T(parameters, sizes, arrays, v):
+    b_size, y_size = sizes
+    b_grid, y_t_nodes, y_n_nodes, Q = arrays
+    b_indices, y_indices = jnp.arange(b_size), jnp.arange(y_size)
+    # Evaluate RHS of Bellman equation at all states and actions
+    val = planner_T_vectorized(v, parameters, arrays,
+                     b_indices, y_indices, y_indices, b_indices)
+    # Maximize over bp
+    return jnp.max(val, axis=-1), b_grid[jnp.argmax(val, axis=-1)]
+
+planner_T = jax.jit(planner_T, static_argnums=(1,))
+
+
+def compute_planner_solution(model):
+    """
+    Compute the constrained planner solution.
+
+    """
+    parameters, sizes, arrays = model
+    b_size, y_size = sizes
+    b_indices = jnp.arange(b_size)
+    v_init = jnp.ones((b_size, y_size, y_size))
+    _T = lambda v: planner_T(parameters, sizes, arrays, v)
+    # Compute household response to current guess H
+    v, bp_policy, vfi_num_iter = vfi(_T, v_init)
+    return v, bp_policy, vfi_num_iter
+
 ## Test
 
 model = create_overborrowing_model()
@@ -258,14 +328,26 @@ b_size, y_size = sizes
 b_grid, y_t_nodes, y_n_nodes, Q = arrays
 
 jax_in_time = time.time()
+planner_v, planner_policy, vfi_num_iter = compute_planner_solution(model)
+jax_out_time = time.time()
+diff = jax_out_time - jax_in_time
+print(f"Computed decentralized equilibrium in {diff} seconds")
+
+jax_in_time = time.time()
 H_jax = compute_equilibrium(parameters, sizes, arrays)
 jax_out_time = time.time()
+diff = jax_out_time - jax_in_time
+print(f"Computed decentralized equilibrium in {diff} seconds")
 
-print("JAX time:", jax_out_time - jax_in_time)
 
+i, j = 1, 3
+y_t, y_n = y_t_nodes[i], y_n_nodes[j]
 fig, ax = plt.subplots()
-for i_y in range(y_size): 
-    ax.plot(b_grid, H_jax[:, i_y])
+ax.plot(b_grid, H_jax[:, i, j], label='decentralized')
+ax.plot(b_grid, planner_policy[:, i, j], label='planner')
 ax.plot(b_grid, b_grid, color='black', ls='--')
+ax.legend()
+ax.set_title(f"policy when $y_t = {y_t}$ and $y_n = {y_n}$")
 plt.show()
+
 
