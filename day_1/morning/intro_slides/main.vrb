@@ -1,18 +1,18 @@
+\frametitle{Python + Numba copy Julia}
 
     \begin{minted}{python}
-import jax.numpy as jnp
-from jax import grad, jit
+from numba import jit
 
-def predict(params, x):
-  for W, b in params:
-    y = jnp.dot(W, x) + b
-    x = jnp.tanh(y)
-  return y
+@jit(nopython=True)
+def solow(k0, α=0.4, δ=0.1, n=1_000):
+    k = k0
+    for i in range(n-1):
+        k = s * k**α + (1 - δ) * k
+    return k
 
-def loss(params, x, targets):
-  preds = predict(params, x)
-  return jnp.sum((preds - targets)**2)
-
-grad_loss = jit(grad(loss))
+solow(0.2)
     \end{minted}
+
+
+    Runs at same speed as Julia / C / Fortran
 
