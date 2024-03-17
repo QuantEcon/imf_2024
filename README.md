@@ -49,21 +49,23 @@ will join remotely and run a one hour session on the 27th.
 * Monday afternoon: Python basics
   - Core Python 
   - NumPy / SciPy / Matplotlib / Numba
+  - Day 1 homework: Lorenz curves and Gini coefficients
 * Tuesday morning: Markov chains in Python
-  - Basic concepts
-  - Linear algebra methods
-  - Simulation
-  - Continuous state dynamics
+  - Markov chains: Basic concepts
+  - Intermezzo: A quick introduction to JAX
+  - Wealth distribution dynamics
+  - TBA
 * Tuesday afternoon: Dynamic programming
-  - Job search
   - Household problems
-  - Dynamic programming with JAX
+  - Alternative algorithms: VFI, HPI and OPI
+  - TBA
 * Wednesday morning: Heterogeneous agents
   - Heterogenous firms
   - The Aiyagari model
+  - TBA
 * Wednesday afternoon: Further applications
   - Sovereign default
-  - The Bianchi overborrowing model?
+  - The Bianchi overborrowing model
 
 
 ## Software
