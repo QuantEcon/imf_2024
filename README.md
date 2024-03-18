@@ -46,6 +46,7 @@ will join remotely and run a one hour session on the 27th.
   - Shock and awe: JAX on GPUs 
   - Python and the AI revolution
   - A brief tour of Python's massive scientific computing ecosystem
+  - Working with Jupyter
 * Monday afternoon: Python basics
   - Core Python 
   - NumPy / SciPy / Matplotlib / Numba
@@ -58,7 +59,7 @@ will join remotely and run a one hour session on the 27th.
 * Tuesday afternoon: Dynamic programming
   - Household problems
   - Alternative algorithms: VFI, HPI and OPI
-  - TBA
+  - The endogenous grid method
 * Wednesday morning: Heterogeneous agents
   - Heterogenous firms
   - The Aiyagari model
