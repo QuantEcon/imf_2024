@@ -90,10 +90,8 @@ Required Python libraries (much of which is found in the Anaconda Python distrib
 * `statsmodels`
 * `numba`
 * `f2py`
-* `interpolation` (https://www.econforge.org/interpolation.py/)
 * `quantecon`
 
 ## Useful References
 
 * https://www.anaconda.com/download
-* https://pythonspeed.com/
