@@ -66,7 +66,7 @@ def discretize_income_var(A=A2, Ω=Ω2, grid_size=4, seed=1234):
     # We switch the representation to the one described in the docstring.
     y_t_nodes = [y_nodes[n*i, 0] for i in range(n)]  
     y_n_nodes = y_nodes[0:4, 1]                      
-    Q = np.reshape(Q_single_index, (n, n, n, n))
+    Q = np.reshape(Q, (n, n, n, n))
     return y_t_nodes, y_n_nodes, Q
 
 
