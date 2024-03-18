@@ -1,0 +1,5 @@
+\begin{Verbatim}[commandchars=\\\{\},codes={\catcode`\$=3\catcode`\^=7\catcode`\_=8\relax}]
+\PYG{o}{\PYGZgt{}\PYGZgt{}} \PYG{n}{x} \PYG{o}{=} \PYG{l+s+s1}{\PYGZsq{}foo\PYGZsq{}}
+\PYG{o}{\PYGZgt{}\PYGZgt{}} \PYG{n+nb}{type}\PYG{p}{(}\PYG{n}{x}\PYG{p}{)}
+\PYG{n+nb}{str}
+\end{Verbatim}

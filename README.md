@@ -42,22 +42,24 @@ will join remotely and run a one hour session on the 27th.
 
 ## Syllabus
 
-* Monday morning: Overview
-  - Shock and awe: JAX on GPUs 
-  - Python and the AI revolution
+* Monday morning: Introduction 
+  - Scientific computing: directions and trends (`intro_slides/sci_comp_intro.pdf`)
+  - Python and the AI revolution (`ai_revolution/main.pdf`)
+  - Shock and awe: JAX on GPUs (`fun_with_jax.ipynb`)
   - A brief tour of Python's massive scientific computing ecosystem
   - Working with Jupyter
 * Monday afternoon: Python basics
-  - Core Python 
+  - Core Python  (`quick_python_intro.ipynb`)
   - NumPy / SciPy / Matplotlib / Numba
-  - Day 1 homework: Lorenz curves and Gini coefficients
-* Tuesday morning: Markov chains in Python
-  - Markov chains: Basic concepts
-  - Intermezzo: A quick introduction to JAX
-  - Wealth distribution dynamics
+  - Day 1 homework: Lorenz curves and Gini coefficients (`lorenz_gini.ipynb`)
+* Tuesday morning: Markov models in Python
+  - Markov chains: Basic concepts (`finite_markov.ipynb`)
+  - Intermezzo: A quick introduction to JAX (`jax_intro.ipynb`)
+  - Wealth distribution dynamics (`wealth_dynamics.ipynb`)
   - TBA
+  - Day 2 homework: Markov chain exercises (`markov_homework.ipynb`)
 * Tuesday afternoon: Dynamic programming
-  - Household problems
+  - A simple optimal savings problem
   - Alternative algorithms: VFI, HPI and OPI
   - The endogenous grid method
 * Wednesday morning: Heterogeneous agents
