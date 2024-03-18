@@ -45,12 +45,12 @@ will join remotely and run a one hour session on the 27th.
 * Monday morning: Introduction 
   - Scientific computing: directions and trends (`intro_slides/sci_comp_intro.pdf`)
   - Python and the AI revolution (`ai_revolution/main.pdf`)
-  - Shock and awe: JAX on GPUs (`fun_with_jax.ipynb`)
-  - A brief tour of Python's massive scientific computing ecosystem
+  - A taste of HPC with Python (`fun_with_jax.ipynb`)
+  - A brief tour of Python's massive scientific computing ecosystem (`scientific_python/main.pdf`)
   - Working with Jupyter
 * Monday afternoon: Python basics
   - Core Python  (`quick_python_intro.ipynb`)
-  - NumPy / SciPy / Matplotlib / Numba
+  - NumPy / SciPy / Matplotlib / Numba (`quick_scientific_python_intro.ipynb`)
   - Day 1 homework: Lorenz curves and Gini coefficients (`lorenz_gini.ipynb`)
 * Tuesday morning: Markov models in Python
   - Markov chains: Basic concepts (`finite_markov.ipynb`)
