@@ -17,10 +17,14 @@ In this lecture we examine wealth dynamics in large cross-section of agents who
 are subject to both 
 
 * idiosyncratic shocks, which affect labor income and returns, and 
-* aggregate shocks, which also impact on labor income and returns
+* an aggregate shock, which also impacts on labor income and returns
 
-Savings and consumption behavior is taken as given -- you can plug in your
-favorite model and then analyze distribution dynamics using these techniques.
+
+In most macroeconomic models savings and consumption are determined by optimization.
+
+Here savings and consumption behavior is taken as given -- you can plug in your
+favorite model to obtain savings behavior and then analyze distribution dynamics
+using the techniques described below.
 
 Uncomment if necessary
 
@@ -45,44 +49,45 @@ from collections import namedtuple
 ## Wealth dynamics: Numba version
 
 
-The model we will study is
+Wealth evolves as follows:
 
 ```{math}
     w_{t+1} = (1 + r_{t+1}) s(w_t) + y_{t+1}
 ```
 
-where
+Here
 
 - $w_t$ is wealth at time $t$ for a given household,
 - $r_t$ is the rate of return of financial assets,
 - $y_t$ is labor income and
 - $s(w_t)$ is savings (current wealth minus current consumption)
 
-In addition, there is an aggregate state process $\{z_t\}$ obeying
+
+There is an aggregate state process 
 
 $$
     z_{t+1} = a z_t + b + \sigma_z \epsilon_{t+1}
 $$
 
-This aggregate process affects the interest rate and labor income.
+that affects the interest rate and labor income.
 
-we’ll assume that
+In particular, the gross interest rates obeys
 
 $$
     R_t := 1 + r_t = c_r \exp(z_t) + \exp(\mu_r + \sigma_r \xi_t)
 $$
 
-and
+while
 
 $$
     y_t = c_y \exp(z_t) + \exp(\mu_y + \sigma_y \zeta_t)
 $$
 
-Here $\{ (\epsilon_t, \xi_t, \zeta_t) \}$ is IID and standard normal in $\mathbb R^3$.
+The tuple $\{ (\epsilon_t, \xi_t, \zeta_t) \}$ of idiosyncratic shocks is IID and standard normal in $\mathbb R^3$.
 
-The value of $c_r$ should be close to zero, since rates of return on assets do not exhibit large trends.
+(Each household receives their own idiosyncratic shocks.)
 
-When we simulate a population of households, we will assume all shocks are idiosyncratic (i.e.,  specific to individual households and independent across them).
+We will set $c_r$ close to zero, since rates of return on assets do not exhibit large trends.
 
 Regarding the savings function $s$, our default model will be
 
@@ -94,18 +99,14 @@ s(w) = s_0 w \cdot \mathbb 1\{w \geq \hat w\}
 
 where $s_0$ is a positive constant.
 
-Thus, for $w < \hat w$, the household saves nothing. For $w \geq \bar w$, the household saves a fraction $s_0$ of their wealth.
+Thus, 
 
-We are using something akin to a fixed savings rate model, while acknowledging that low wealth households tend to save very little.
-
-In most macroeconomic models the savings function will be determined by
-optimization.
-
-We abstract from this step --- consider this analysis of distribution dynamics
-with when a savings function has already been determined.
+* for $w < \hat w$, the household saves nothing, while
+* for $w \geq \bar w$, the household saves a fraction $s_0$ of their wealth.
 
 
-## Implementation
+
+## Implementation (Numba version)
 
 
 Here's a function that collects parameters and useful constants
@@ -124,6 +125,10 @@ def create_wealth_model(w_hat=1.0,   # Savings parameter
                         σ_z=0.1):    # Aggregate shock parameter
     """
     Create a wealth model with given parameters. 
+
+    Return a tuple model = (household_params, aggregate_params), where
+    household_params collects household information and aggregate_params
+    collects information relevant to the aggregate shock process.
     
     """
     # Mean and variance of z process
@@ -145,6 +150,8 @@ def create_wealth_model(w_hat=1.0,   # Savings parameter
     return model
 ```
 
+Here's a function that generates the aggregate state process
+
 ```{code-cell} ipython3
 @numba.jit
 def generate_aggregate_state_sequence(aggregate_params, length=100):
@@ -156,7 +163,8 @@ def generate_aggregate_state_sequence(aggregate_params, length=100):
     return z
 ```
 
-Here's two functions that update the aggregate state and household wealth.
+Here's a function that updates household wealth by one period, taking the
+current value of the aggregate shock.
 
 ```{code-cell} ipython3
 @numba.jit
@@ -175,27 +183,26 @@ def update_wealth(household_params, w, z):
     return wp
 ```
 
-Here's function to simulate the time series of wealth for individual households.
+Here's function to simulate the time series of wealth for an individual household.
+
 
 ```{code-cell} ipython3
 @numba.jit
-def wealth_time_series(model, w_0, n):
+def wealth_time_series(model, w_0, sim_length):
     """
-    Generate a single time series of length n for wealth given
-    initial value w_0.
-
-    The initial persistent state z_0 for each household is drawn from
-    the stationary distribution of the AR(1) process.
+    Generate a single time series of length sim_length for wealth given initial
+    value w_0.  The function generates its own aggregate shock sequence.
 
     """
     # Unpack
     household_params, aggregate_params = model
     a, b, σ_z, z_mean, z_var = aggregate_params 
     # Initialize and update
-    z = generate_aggregate_state_sequence(aggregate_params, length=n)
-    w = np.empty(n+1)
+    z = generate_aggregate_state_sequence(aggregate_params, 
+                                          length=sim_length)
+    w = np.empty(n)
     w[0] = w_0
-    for t in range(n):
+    for t in range(n-1):
         w[t+1] = update_wealth(household_params, w[t], z[t+1])
     return w
 ```
@@ -206,13 +213,13 @@ Note the use of parallelization to speed up computation.
 
 ```{code-cell} ipython3
 @numba.jit(parallel=True)
-def update_cross_section(model, w_distribution, shift_length=500):
+def update_cross_section(model, w_distribution, sim_length=500):
     """
     Shifts a cross-section of household forward in time
 
     Takes a current distribution of wealth values as w_distribution
     and updates each w_t in w_distribution to w_{t+j}, where
-    j = shift_length.
+    j = sim_length.
 
     Returns the new distribution.
 
@@ -223,21 +230,23 @@ def update_cross_section(model, w_distribution, shift_length=500):
     num_households = len(w_distribution)
     new_distribution = np.empty_like(w_distribution)
     z = generate_aggregate_state_sequence(aggregate_params,
-                                          length=shift_length)
+                                          length=sim_length)
 
     # Update each household
     for i in numba.prange(num_households):
-        # 
         w = w_distribution[i]
-        for t in range(shift_length-1):
+        for t in range(sim_length):
             w = update_wealth(household_params, w, z[t])
         new_distribution[i] = w
     return new_distribution
 ```
 
-Parallelization is very effective in the function above because the time path
-of each household can be calculated independently once the path for the
-aggregate state is known.
+Parallelization works in the function above because the time path of each
+household can be calculated independently once the path for the aggregate state
+is known.
+
+
+
 
 ## Applications
 
@@ -287,7 +296,7 @@ def generate_lorenz_and_gini(model, num_households=100_000, T=500):
     ψ_0 = np.full(num_households, y_mean)
     z_0 = z_mean
     # Compute cross-section and measures
-    ψ_star = update_cross_section(model, ψ_0, shift_length=T)
+    ψ_star = update_cross_section(model, ψ_0, sim_length=T)
     return qe.gini_coefficient(ψ_star), qe.lorenz_curve(ψ_star)
 ```
 
@@ -397,7 +406,7 @@ model = create_wealth_model()
 ψ_0 = np.full(num_households, y_mean)
 z_0 = z_mean
 
-ψ_star = update_cross_section(model, ψ_0, shift_length=T)
+ψ_star = update_cross_section(model, ψ_0, sim_length=T)
 ```
 
 Now let's see the rank-size plot:
@@ -648,7 +657,7 @@ plt.show()
 Now here’s function to simulate a cross section of households forward in time.
 
 ```{code-cell} ipython3
-def update_cross_section_jax(w_distribution, shift_length, model, size, rand_seed=2):
+def update_cross_section_jax(w_distribution, sim_length, model, size, rand_seed=2):
     """
     Shifts a cross-section of household forward in time
 
@@ -657,11 +666,11 @@ def update_cross_section_jax(w_distribution, shift_length, model, size, rand_see
 
     Takes a current distribution of wealth values as w_distribution
     and updates each w_t in w_distribution to w_{t+j}, where
-    j = shift_length.
+    j = sim_length.
 
     Returns the new distribution.
     """
-    new_dist = wealth_time_series_jax(w_distribution, shift_length, model, size, rand_seed)
+    new_dist = wealth_time_series_jax(w_distribution, sim_length, model, size, rand_seed)
     new_distribution = new_dist[-1, :]
     return new_distribution
 
