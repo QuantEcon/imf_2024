@@ -347,7 +347,7 @@ ax.plot(b_grid, H_jax[:, i, j], label='decentralized')
 ax.plot(b_grid, planner_policy[:, i, j], label='planner')
 ax.plot(b_grid, b_grid, color='black', ls='--')
 ax.legend()
-ax.set_title(f"policy when $y_t = {y_t}$ and $y_n = {y_n}$")
+ax.set_title(f"policy when $y_t = {y_t:.2}$ and $y_n = {y_n:.2}$")
 plt.show()
 
 

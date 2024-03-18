@@ -54,7 +54,7 @@ def create_overborrowing_model(
 
     """
     # Read in data using parameters estimated in Yamada (2023)
-    y_t_nodes, y_n_nodes, Q = discretize_income_var(single_index=False)
+    y_t_nodes, y_n_nodes, Q = discretize_income_var()
     # Set up grid for bond holdings
     b_grid = np.linspace(b_grid_min, b_grid_max, b_size)
 
