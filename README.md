@@ -59,12 +59,12 @@ will join remotely and run a one hour session on the 27th.
   - TBA
   - Day 2 homework: Markov chain exercises (`markov_homework.ipynb`)
 * Tuesday afternoon: Dynamic programming
-  - A simple optimal savings problem
-  - Alternative algorithms: VFI, HPI and OPI
-  - The endogenous grid method
+  - A simple optimal savings problem (`opt_savings_1.ipynb`)
+  - Alternative algorithms: VFI, HPI and OPI (`opt_savings_2.ipynb`)
+  - The endogenous grid method (`egm.ipynb`)
 * Wednesday morning: Heterogeneous agents
-  - Heterogenous firms
-  - The Aiyagari model
+  - Heterogenous firms (`hopenhayn_jax.ipynb`)
+  - The Aiyagari model (`aiyagari_jax.ipynb`)
   - TBA
 * Wednesday afternoon: Further applications
   - Sovereign default
