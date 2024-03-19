@@ -68,7 +68,7 @@ will join remotely and run a one hour session on the 27th.
   - TBA
 * Wednesday afternoon: Further applications
   - Sovereign default
-  - The Bianchi overborrowing model
+  - The Bianchi overborrowing model (`overborrowing.ipynb`, `bianchi.pdf`)
 
 
 ## Software
