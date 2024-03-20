@@ -1,9 +1,0 @@
-\begin{Verbatim}[commandchars=\\\{\},codes={\catcode`\$=3\catcode`\^=7\catcode`\_=8\relax}]
-ϕ\PYG{+w}{ }john\PYG{+w}{ }on\PYG{+w}{ }gz\PYGZhy{}precision\PYG{+w}{ }…/imf\PYGZus{}2024\PYG{+w}{ }on\PYG{+w}{ }β\PYG{+w}{ }main
-❯❯\PYG{+w}{ }gcc\PYG{+w}{ }solow.c\PYG{+w}{ }\PYGZhy{}o\PYG{+w}{ }out\PYG{+w}{ }\PYGZhy{}lm
-
-ϕ\PYG{+w}{ }john\PYG{+w}{ }on\PYG{+w}{ }gz\PYGZhy{}precision\PYG{+w}{ }…/imf\PYGZus{}2024\PYG{+w}{ }on\PYG{+w}{ }β\PYG{+w}{ }main
-❯❯\PYG{+w}{ }./out
-
-\PYG{n+nv}{x}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m}{6}.240251
-\end{Verbatim}

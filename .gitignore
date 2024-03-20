@@ -1,3 +1,9 @@
+*.aux
+*.log
+*.fls
+*.synctex.gz
+
 .ipynb_checkpoints/
 .virtual_documents/
 __pycache__/
+_minted*
