@@ -94,3 +94,4 @@ Required Python libraries (much of which is found in the Anaconda Python distrib
 ## Useful References
 
 * https://www.anaconda.com/download
+* https://github.com/google/jax/issues/13684 (for JS)
