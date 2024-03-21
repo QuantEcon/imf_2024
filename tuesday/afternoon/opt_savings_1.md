@@ -1,14 +1,15 @@
 ---
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.16.1
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
+jupyter:
+  jupytext:
+    text_representation:
+      extension: .md
+      format_name: markdown
+      format_version: '1.3'
+      jupytext_version: 1.16.1
+  kernelspec:
+    display_name: Python 3 (ipykernel)
+    language: python
+    name: python3
 ---
 
 # Optimal Savings I: Value Function Iteration
@@ -18,15 +19,13 @@ kernelspec:
 
 In addition to JAX and Anaconda, this lecture will need the following libraries:
 
-```{code-cell} ipython3
-:tags: [hide-output]
-
+```python tags=["hide-output"]
 !pip install quantecon
 ```
 
 We will use the following imports:
 
-```{code-cell} ipython3
+```python
 import quantecon as qe
 import numpy as np
 import jax
@@ -38,22 +37,23 @@ import time
 
 Let's check the GPU we are running
 
-```{code-cell} ipython3
+```python
 !nvidia-smi
 ```
 
 We'll use 64 bit floats to gain extra precision.
 
-```{code-cell} ipython3
+```python
 jax.config.update("jax_enable_x64", True)
 ```
 
+<!-- #region -->
 ## Overview
 
 We consider an optimal savings problem with CRRA utility and budget constraint
 
 $$ 
-W_{t+1} + C_t \leq R W_t + Y_t 
+    W_{t+1} + C_t \leq R W_t + Y_t 
 $$
 
 where
@@ -106,15 +106,15 @@ rough comparison with MATLAB.)
 
 The following function contains default parameters and returns tuples that
 contain the key computational components of the model.
+<!-- #endregion -->
 
-
-```{code-cell} ipython3
+```python
 def create_consumption_model(R=1.01,                    # Gross interest rate
                              β=0.98,                    # Discount factor
                              γ=2,                       # CRRA parameter
                              w_min=0.01,                # Min wealth
                              w_max=5.0,                 # Max wealth
-                             w_size=150,                # Grid side
+                             w_size=150,                # Grid size
                              ρ=0.9, ν=0.1, y_size=100): # Income parameters
     """
     A function that takes in parameters and returns parameters and grids 
@@ -139,7 +139,7 @@ To produce efficient NumPy code, we will use a vectorized approach.
 The first step is to create the right hand side of the Bellman equation as a
 multi-dimensional array with dimensions over all states and controls.
 
-```{code-cell} ipython3
+```python
 def B(v, params, sizes, arrays):
     """
     A vectorized version of the right-hand side of the Bellman equation
@@ -177,7 +177,7 @@ The first is the Bellman operator.
 The second computes a $v$-greedy policy given $v$ (i.e., the policy that
 maximizes the right-hand side of the Bellman equation.)
 
-```{code-cell} ipython3
+```python
 def T(v, params, sizes, arrays):
     "The Bellman operator."
     return np.max(B(v, params, sizes, arrays), axis=2)
@@ -187,12 +187,11 @@ def get_greedy(v, params, sizes, arrays):
     return np.argmax(B(v, params, sizes, arrays), axis=2)
 ```
 
-
 ### Value function iteration
 
 Here's a routine that performs value function iteration.
 
-```{code-cell} ipython3
+```python
 def value_function_iteration(model, max_iter=10_000, tol=1e-5):
     params, sizes, arrays = model
     v = np.zeros(sizes)
@@ -208,7 +207,7 @@ def value_function_iteration(model, max_iter=10_000, tol=1e-5):
 Now we create an instance, unpack it, and test how long it takes to solve the
 model.
 
-```{code-cell} ipython3
+```python
 model = create_consumption_model()
 # Unpack
 params, sizes, arrays = model
@@ -225,13 +224,7 @@ print(f"VFI completed in {numpy_elapsed} seconds.")
 
 Here's a plot of the policy function.
 
-```{code-cell} ipython3
----
-mystnb:
-  figure:
-    caption: Policy function
-    name: policy-function
----
+```python mystnb={"figure": {"caption": "Policy function", "name": "policy-function"}}
 fig, ax = plt.subplots()
 ax.plot(w_grid, w_grid, "k--", label="45")
 ax.plot(w_grid, w_grid[σ_star[:, 1]], label="$\\sigma^*(\cdot, y_1)$")
@@ -240,8 +233,7 @@ ax.legend()
 plt.show()
 ```
 
-
-
+<!-- #region -->
 ## Switching to JAX
 
 To switch over to JAX, we change `np` to `jnp` throughout and add some
@@ -253,14 +245,15 @@ To switch over to JAX, we change `np` to `jnp` throughout and add some
 We redefine `create_consumption_model` to produce JAX arrays.
 
 (prgm:create-consumption-model)=
+<!-- #endregion -->
 
-```{code-cell} ipython3
+```python
 def create_consumption_model(R=1.01,                    # Gross interest rate
                              β=0.98,                    # Discount factor
                              γ=2,                       # CRRA parameter
                              w_min=0.01,                # Min wealth
                              w_max=5.0,                 # Max wealth
-                             w_size=150,                # Grid side
+                             w_size=150,                # Grid size
                              ρ=0.9, ν=0.1, y_size=100): # Income parameters
     """
     A function that takes in parameters and returns parameters and grids 
@@ -273,11 +266,10 @@ def create_consumption_model(R=1.01,                    # Gross interest rate
     return (β, R, γ), sizes, (w_grid, y_grid, Q)
 ```
 
-
 The right hand side of the Bellman equation is the same as the NumPy version
 after switching `np` to `jnp`.
 
-```{code-cell} ipython3
+```python
 def B(v, params, sizes, arrays):
     """
     A vectorized version of the right-hand side of the Bellman equation
@@ -306,8 +298,6 @@ def B(v, params, sizes, arrays):
 
     # Compute the right-hand side of the Bellman equation
     return jnp.where(c > 0, c**(1-γ)/(1-γ) + β * EV, -jnp.inf)
-
-
 ```
 
 Some readers might be concerned that we are creating high dimensional arrays,
@@ -318,16 +308,16 @@ Could they be avoided by more careful vectorization?
 In fact this is not necessary: this function will be JIT-compiled by JAX, and
 the JIT compiler will optimize compiled code to minimize memory use.
 
-```{code-cell} ipython3
+```python
 B = jax.jit(B, static_argnums=(2,))
 ```
 
 In the call above, we indicate to the compiler that `sizes` is static, so the
 compiler can parallelize optimally while taking array sizes as fixed.
 
-The Bellman operator $T$ can be implemented by 
+The Bellman operator $T$ can be implemented by
 
-```{code-cell} ipython3
+```python
 def T(v, params, sizes, arrays):
     "The Bellman operator."
     return jnp.max(B(v, params, sizes, arrays), axis=2)
@@ -338,7 +328,7 @@ T = jax.jit(T, static_argnums=(2,))
 The next function computes a $v$-greedy policy given $v$ (i.e., the policy that
 maximizes the right-hand side of the Bellman equation.)
 
-```{code-cell} ipython3
+```python
 def get_greedy(v, params, sizes, arrays):
     "Computes a v-greedy policy, returned as a set of indices."
     return jnp.argmax(B(v, params, sizes, arrays), axis=2)
@@ -360,7 +350,7 @@ This will give us just a bit more speed.
 The first step is to write a compiled successive approximation routine that
 performs fixed point iteration on some given function `T`.
 
-```{code-cell} ipython3
+```python
 def successive_approx_jax(T,                     # Operator (callable)
                           x_0,                   # Initial condition                
                           tolerance=1e-6,        # Error tolerance
@@ -386,7 +376,7 @@ successive_approx_jax = \
 Our value function iteration routine calls `successive_approx_jax` while passing
 in the Bellman operator.
 
-```{code-cell} ipython3
+```python
 def value_function_iteration(model, tol=1e-5):
     params, sizes, arrays = model
     vz = jnp.zeros(sizes)
@@ -397,9 +387,9 @@ def value_function_iteration(model, tol=1e-5):
 
 ### Timing
 
-Let's create an instance and unpack it. 
+Let's create an instance and unpack it.
 
-```{code-cell} ipython3
+```python
 model = create_consumption_model()
 # Unpack
 params, sizes, arrays = model
@@ -410,7 +400,7 @@ w_grid, y_grid, Q = arrays
 
 Let's see how long it takes to solve this model.
 
-```{code-cell} ipython3
+```python
 print("Starting VFI using vectorization.")
 start_time = time.time()
 v_star_jax, σ_star_jax = value_function_iteration(model)
@@ -420,11 +410,11 @@ print(f"VFI completed in {jax_elapsed} seconds.")
 
 The relative speed gain is
 
-```{code-cell} ipython3
+```python
 print(f"Relative speed gain = {numpy_elapsed / jax_elapsed}")
 ```
 
-
+<!-- #region -->
 This is an impressive speed up and in fact we can do better still by switching
 to alternative algorithms that are better suited to parallelization.
 
@@ -453,8 +443,9 @@ Here's a version that
 1. applies `jax.vmap` on the outside to achieve a parallelized solution.
 
 First let's rewrite `B`
+<!-- #endregion -->
 
-```{code-cell} ipython3
+```python
 def B(v, params, arrays, i, j, ip):
     """
     The right-hand side of the Bellman equation before maximization, which takes
@@ -474,7 +465,7 @@ def B(v, params, arrays, i, j, ip):
 
 Now we successively apply `vmap` to simulate nested loops.
 
-```{code-cell} ipython3
+```python
 B_1    = jax.vmap(B,   in_axes=(None, None, None, None, None, 0))
 B_2    = jax.vmap(B_1, in_axes=(None, None, None, None, 0,    None))
 B_vmap = jax.vmap(B_2, in_axes=(None, None, None, 0,    None, None))
@@ -482,7 +473,7 @@ B_vmap = jax.vmap(B_2, in_axes=(None, None, None, 0,    None, None))
 
 Here's the Bellman operator and the `get_greedy` functions for the `vmap` case.
 
-```{code-cell} ipython3
+```python
 def T_vmap(v, params, sizes, arrays):
     "The Bellman operator."
     w_size, y_size = sizes
@@ -504,7 +495,7 @@ get_greedy_vmap = jax.jit(get_greedy_vmap, static_argnums=(2,))
 
 Here's the iteration routine.
 
-```{code-cell} ipython3
+```python
 def value_iteration_vmap(model, tol=1e-5):
     params, sizes, arrays = model
     vz = jnp.zeros(sizes)
@@ -515,7 +506,7 @@ def value_iteration_vmap(model, tol=1e-5):
 
 Let's see how long it takes to solve the model using the `vmap` method.
 
-```{code-cell} ipython3
+```python
 print("Starting VFI using vmap.")
 start_time = time.time()
 v_star_vmap, σ_star_vmap = value_iteration_vmap(model)
@@ -525,25 +516,138 @@ print(f"VFI completed in {jax_vmap_elapsed} seconds.")
 
 We need to make sure that we got the same result.
 
-```{code-cell} ipython3
+```python
 print(jnp.allclose(v_star_vmap, v_star_jax))
 print(jnp.allclose(σ_star_vmap, σ_star_jax))
 ```
 
 Here's the speed gain associated with switching from the NumPy version to JAX with `vmap`:
 
-```{code-cell} ipython3
+```python
 print(f"Relative speed = {numpy_elapsed / jax_vmap_elapsed}")
 ```
 
 And here's the comparison with the first JAX implementation (which used direct vectorization).
 
-```{code-cell} ipython3
+```python
 print(f"Relative speed = {jax_elapsed / jax_vmap_elapsed}")
 ```
 
+<!-- #region -->
 The execution times for the two JAX versions are relatively similar.
 
 However, as emphasized above, having a second method up our sleeves (i.e, the
 `vmap` approach) will be helpful when confronting dynamic programs with more
 sophisticated Bellman equations.
+
+
+**Exercise**
+<!-- #endregion -->
+
+```python
+def create_consumption_model(R=1.01,                    # Gross interest rate
+                             β=0.98,                    # Discount factor
+                             γ=0.5,                     # Utility parameter
+                             δ=0.5,                     # Utility parameter
+                             w_min=0.01,                # Min wealth
+                             w_max=5.0,                 # Max wealth
+                             w_size=150,                # Wealth grid size
+                             l_size=25,                 # Labor grid size
+                             ρ=0.9, ν=0.1, y_size=100): # Income parameters
+    """
+    A function that takes in parameters and returns parameters and grids 
+    for the optimal savings problem.
+    """
+    # Build grids and transition probabilities
+    w_grid = jnp.linspace(w_min, w_max, w_size)
+    l_grid = jnp.linspace(1e-10, 1 - 1e-10, l_size)
+    mc = qe.tauchen(n=y_size, rho=ρ, sigma=ν)
+    y_grid, Q = np.exp(mc.state_values), mc.P
+    y_grid, Q = [jnp.array(v) for v in (y_grid, Q)]
+    # Pack and return
+    params = β, R, γ
+    sizes = w_size, l_size, y_size
+    arrays = w_grid, l_grid, y_grid, Q
+    return params, sizes, arrays
+```
+
+```python
+def B(v, params, arrays, i, j, k, ip):
+    """
+    The right-hand side of the Bellman equation before maximization, which takes
+    the form
+
+        B(w, y, l, w′) = u(c, l) + β Σ_y′ v(w′, y′) Q(y, y′)
+
+    where u(c, l) = (Rw + y - w′)^γ (1 - l)^δ. The indices are 
+
+        (i, j, k, ip) -> (w, y, l, w′).
+    """
+    β, R, γ = params
+    w_grid, l_grid, y_grid, Q = arrays
+    w, y, wp, l = w_grid[i], y_grid[j], w_grid[ip], l_grid
+    c = R * w + y - wp
+    EV = jnp.sum(v[ip, :] * Q[j, :]) 
+    return jnp.where(c > 0, c**γ * l**δ + β * EV, -jnp.inf)
+```
+
+Now we successively apply `vmap` to simulate nested loops.
+
+```python
+B_1    = jax.vmap(B,   in_axes=(None, None, None, None, None, None, 0))
+B_2    = jax.vmap(B_1, in_axes=(None, None, None, None, None, 0,    None))
+B_3    = jax.vmap(B_2, in_axes=(None, None, None, None, 0,    None, None))
+B_vmap = jax.vmap(B_3, in_axes=(None, None, None, 0, None,    None, None))
+```
+
+Here's the Bellman operator and the `get_greedy` functions for the `vmap` case.
+
+```python
+def T_vmap(v, params, sizes, arrays):
+    "The Bellman operator."
+    w_size, l_size, y_size = sizes
+    w_indices, y_indices = jnp.arange(w_size), jnp.arange(y_size)
+    B_values = B_vmap(v, params, arrays, w_indices, y_indices, w_indices)
+    return jnp.max(B_values, axis=(-2, -1))
+
+T_vmap = jax.jit(T_vmap, static_argnums=(2,))
+
+def get_greedy_vmap(v, params, sizes, arrays):
+    "Computes a v-greedy policy, returned as a set of indices."
+    w_size, l_size, y_size = sizes
+    w_indices, y_indices = jnp.arange(w_size), jnp.arange(y_size)
+    B_values = B_vmap(v, params, arrays, w_indices, y_indices, w_indices)
+    return jnp.argmax(B_values, axis=(-2, -1))
+
+get_greedy_vmap = jax.jit(get_greedy_vmap, static_argnums=(2,))
+```
+
+Here's the iteration routine.
+
+```python
+def value_iteration_vmap(model, tol=1e-5):
+    params, sizes, arrays = model
+    vz = jnp.zeros(sizes)
+    _T = lambda v: T_vmap(v, params, sizes, arrays)
+    v_star = successive_approx_jax(_T, vz, tolerance=tol)
+    return v_star, get_greedy(v_star, params, sizes, arrays)
+```
+
+Let's see how long it takes to solve the model.
+
+```python
+model = create_consumption_model()
+# Unpack
+params, sizes, arrays = model
+β, R, γ = params
+w_size, l_size, y_size = sizes
+w_grid, y_grid, Q = arrays
+```
+
+```python
+print("Starting VFI using vmap.")
+start_time = time.time()
+v_star_vmap, σ_star_vmap = value_iteration_vmap(model)
+jax_vmap_elapsed = time.time() - start_time
+print(f"VFI completed in {jax_vmap_elapsed} seconds.")
+```
