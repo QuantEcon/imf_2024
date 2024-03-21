@@ -24,11 +24,6 @@ In addition to JAX and Anaconda, this lecture will need the following libraries:
 #!pip install quantecon
 ```
 
-```{code-cell} ipython3
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0" # second gpu
-```
-
 We will use the following imports:
 
 ```{code-cell} ipython3
@@ -41,11 +36,7 @@ import matplotlib.pyplot as plt
 import time
 ```
 
-Let's check the GPU we are running
-
-```{code-cell} ipython3
-jax.devices()
-```
+Let's check available GPUs
 
 ```{code-cell} ipython3
 !nvidia-smi
@@ -118,11 +109,11 @@ contain the key computational components of the model.
 
 ```{code-cell} ipython3
 def create_consumption_model(R=1.01,                    # Gross interest rate
-                             β=0.98,                    # Discount factor
-                             γ=2,                       # CRRA parameter
+                             β=0.95,                    # Discount factor
+                             γ=2.0,                     # CRRA parameter
                              w_min=0.01,                # Min wealth
-                             w_max=5.0,                 # Max wealth
-                             w_size=150,                # Grid size
+                             w_max=15.0,                # Max wealth
+                             w_size=200,                # Grid size
                              ρ=0.9, ν=0.1, y_size=100): # Income parameters
     """
     A function that takes in parameters and returns parameters and grids 
@@ -223,7 +214,7 @@ params, sizes, arrays = model
 w_size, y_size = sizes
 w_grid, y_grid, Q = arrays
 
-print("Starting VFI.")
+print("Starting VFI on the CPU using NumPy.")
 start_time = time.time()
 v_star, σ_star = value_function_iteration(model)
 numpy_elapsed = time.time() - start_time
@@ -233,12 +224,6 @@ print(f"VFI completed in {numpy_elapsed} seconds.")
 Here's a plot of the policy function.
 
 ```{code-cell} ipython3
----
-mystnb:
-  figure:
-    caption: Policy function
-    name: policy-function
----
 fig, ax = plt.subplots()
 ax.plot(w_grid, w_grid, "k--", label="45")
 ax.plot(w_grid, w_grid[σ_star[:, 1]], label="$\\sigma^*(\cdot, y_1)$")
@@ -413,7 +398,7 @@ w_grid, y_grid, Q = arrays
 Let's see how long it takes to solve this model.
 
 ```{code-cell} ipython3
-print("Starting VFI using vectorization.")
+print("Starting VFI on the GPU using vectorization.")
 start_time = time.time()
 v_star_jax, σ_star_jax = value_function_iteration(model)
 jax_elapsed = time.time() - start_time
@@ -426,16 +411,9 @@ The relative speed gain is
 print(f"Relative speed gain = {numpy_elapsed / jax_elapsed}")
 ```
 
-This is an impressive speed up and in fact we can do better still by switching
-to alternative algorithms that are better suited to parallelization.
-
-These algorithms are discussed in a {doc}`separate lecture <opt_savings_2>`.
 
 
 ## Switching to vmap
-
-Before we discuss alternative algorithms, let's take another look at value
-function iteration.
 
 For this simple optimal savings problem, direct vectorization is relatively easy.
 
@@ -517,7 +495,7 @@ def value_iteration_vmap(model, tol=1e-5):
 Let's see how long it takes to solve the model using the `vmap` method.
 
 ```{code-cell} ipython3
-print("Starting VFI using vmap.")
+print("Starting VFI on the GPU using vmap.")
 start_time = time.time()
 v_star_vmap, σ_star_vmap = value_iteration_vmap(model)
 jax_vmap_elapsed = time.time() - start_time
@@ -549,128 +527,150 @@ However, as emphasized above, having a second method up our sleeves (i.e, the
 `vmap` approach) will be helpful when confronting dynamic programs with more
 sophisticated Bellman equations.
 
++++
 
 **Exercise**
 
+In recent times, Epstein-Zin preferences have become popular for modeling applications such as business cycles, asset prices, and climate change.
+
+Let's switch to Epstein-Zin preferences, so that the Bellman equation takes the form
+
+$$
+    v(w) = \max_{0 \leq w' \leq Rw + y}
+    \left\{
+        c^\delta + β \left[ \sum_{y'} v(w', y')^\gamma Q(y, y') \right]^{\delta/\gamma}
+    \right\}^{1/\delta}
+$$
+
+where $c = Rw + y - w'$.
+
+Here $\gamma$ governs risk preferences and $\delta$ controls the elasticity of intertemporal substitution.
+
+Try solving the model under these preferences, using parameter values contained in the following function.
+
+After generating a solution, plot the policy functions in a plot similar to the one given above (for policy functions with CRRA preferences).
+
 ```{code-cell} ipython3
-def create_elastic_labor_model(R=1.01,                    # Gross interest rate
-                               β=0.98,                    # Discount factor
-                               γ=0.5,                     # Utility parameter
-                               δ=0.5,                     # Utility parameter
-                               w_min=0.01,                # Min wealth
-                               w_max=5.0,                 # Max wealth
-                               w_size=150,                # Wealth grid size
-                               l_size=10,                 # Labor grid size
-                               ρ=0.9, ν=0.1, y_size=100): # Income parameters
+def create_ez_model(R=1.01,                    # Gross interest rate
+                    β=0.96,                    # Discount factor
+                    γ=0.25,                    # Risk preference parameter
+                    δ=0.25,                    # EIS parameter
+                    w_min=0.01,                # Min wealth
+                    w_max=5.0,                 # Max wealth
+                    w_size=500,                # Wealth grid size
+                    ρ=0.9, ν=0.1, y_size=10): # Income parameters
     """
     A function that takes in parameters and returns parameters and grids 
     for the optimal savings problem.
     """
     # Build grids and transition probabilities
     w_grid = jnp.linspace(w_min, w_max, w_size)
-    l_grid = jnp.linspace(1e-10, 1 - 1e-10, l_size)
     mc = qe.tauchen(n=y_size, rho=ρ, sigma=ν)
     y_grid, Q = np.exp(mc.state_values), mc.P
     y_grid, Q = [jnp.array(v) for v in (y_grid, Q)]
     # Pack and return
     params = β, R, γ, δ
-    sizes = w_size, l_size, y_size
-    arrays = w_grid, l_grid, y_grid, Q
+    sizes = w_size, y_size
+    arrays = w_grid, y_grid, Q
     return params, sizes, arrays
 ```
 
 ```{code-cell} ipython3
-def B_el(v, params, arrays, i, j, k, ip):
+for i in range(12):
+    print("Solution below.")
+```
+
+**Solution**
+
+```{code-cell} ipython3
+def B_ez(v, params, arrays, i, j, ip):
     """
     The right-hand side of the Bellman equation before maximization, which takes
     the form
 
-        B(w, y, l, w′) = u(c, l) + β Σ_y′ v(w′, y′) Q(y, y′)
+        B(w, y, l, w′) = {c^δ + β [ Σ_y′ v(w′, y′)^γ Q(y, y′) ]^(δ/γ) }^(1/δ)
 
-    where u(c, l) = (Rwl + y - w′)^γ (1 - l)^δ. The indices are 
-
-        (i, j, k, ip) -> (w, y, l, w′).
+    where c  = Rw + y - w′. The indices are (i, j, ip) -> (w, y, w′).
     """
     β, R, γ, δ = params
-    w_grid, l_grid, y_grid, Q = arrays
-    w, y, wp, l = w_grid[i], y_grid[j], l_grid[k], w_grid[ip]
-    c = R * w * l + y - wp
-    EV = jnp.sum(v[ip, :] * Q[j, :]) 
-    return jnp.where(c > 0, c**γ * (1 - l)**δ + β * EV, -jnp.inf)
+    w_grid, y_grid, Q = arrays
+    w, y, wp = w_grid[i], y_grid[j], w_grid[ip]
+    c = R * w + y - wp
+    RV = (jnp.sum(v[ip, :]**γ * Q[j, :]))**(1/γ)
+    return jnp.where(c > 0, (c**δ + β * RV**δ)**(1/δ), -jnp.inf)
 ```
 
 Now we successively apply `vmap` to simulate nested loops.
 
 ```{code-cell} ipython3
-B_el_1    = jax.vmap(B_el,   in_axes=(None, None, None, None, None, None, 0))
-B_el_2    = jax.vmap(B_el_1, in_axes=(None, None, None, None, None, 0,    None))
-B_el_3    = jax.vmap(B_el_2, in_axes=(None, None, None, None, 0,    None, None))
-B_el_vmap = jax.vmap(B_el_3, in_axes=(None, None, None, 0,    None, None, None))
+B_ez_1    = jax.vmap(B_ez,   in_axes=(None, None, None, None, None, 0))
+B_ez_2    = jax.vmap(B_ez_1, in_axes=(None, None, None, None, 0,    None))
+B_ez_vmap = jax.vmap(B_ez_2, in_axes=(None, None, None, 0,    None, None))
 ```
 
-Here's the Bellman operator and the `get_greedy` functions for the `vmap` case.
+Here's the Bellman operator and the `get_greedy` functions.
 
 ```{code-cell} ipython3
-def T_el_vmap(v, params, sizes, arrays):
+def T_ez_vmap(v, params, sizes, arrays):
     "The Bellman operator."
-    w_size, l_size, y_size = sizes
-    w_indices, l_indices, y_indices = \
-            [jnp.arange(s) for s in (w_size, l_size, y_size)]
-    B_values = B_el_vmap(v, params, arrays, 
-                      w_indices, y_indices, l_indices, w_indices)
-    return jnp.max(B_values, axis=(-2, -1))
+    w_size, y_size = sizes
+    w_indices, y_indices = jnp.arange(w_size), jnp.arange(y_size)
+    B_values = B_ez_vmap(v, params, arrays, w_indices, y_indices, w_indices)
+    return jnp.max(B_values, axis=(-1))
 
-T_el_vmap = jax.jit(T_el_vmap, static_argnums=(2,))
+T_ez_vmap = jax.jit(T_ez_vmap, static_argnums=(2,))
 
-def get_greedy_el_vmap(v, params, sizes, arrays):
+def get_greedy_ez_vmap(v, params, sizes, arrays):
     "Computes a v-greedy policy, returned as a set of indices."
-    w_size, l_size, y_size = sizes
-    w_indices, l_indices, y_indices = \
-            [jnp.arange(s) for s in (w_size, l_size, y_size)]
-    B_values = B_el_vmap(v, params, arrays, 
-                      w_indices, y_indices, l_indices, w_indices)
-    return jnp.argmax(B_values, axis=(-2, -1))
+    w_size, y_size = sizes
+    w_indices, y_indices = jnp.arange(w_size), jnp.arange(y_size)
+    B_values = B_ez_vmap(v, params, arrays, 
+                      w_indices, y_indices, w_indices)
+    return jnp.argmax(B_values, axis=(-1))
 
-get_greedy_el_vmap = jax.jit(get_greedy_el_vmap, static_argnums=(2,))
+get_greedy_ez_vmap = jax.jit(get_greedy_ez_vmap, static_argnums=(2,))
 ```
 
 Here's the iteration routine.
 
 ```{code-cell} ipython3
-def value_iteration_el_vmap(model, tol=1e-5):
+def value_iteration_ez_vmap(model, tol=1e-5):
     params, sizes, arrays = model
-    w_size, l_size, y_size = sizes
+    w_size, y_size = sizes
     vz = jnp.zeros((w_size, y_size))
-    _T = lambda v: T_el_vmap(v, params, sizes, arrays)
+    _T = lambda v: T_ez_vmap(v, params, sizes, arrays)
     v_star = successive_approx_jax(_T, vz, tolerance=tol)
-    return v_star, 1.0#, get_greedy_el_vmap(v_star, params, sizes, arrays)
+    return v_star, get_greedy_ez_vmap(v_star, params, sizes, arrays)
 ```
 
 Let's see how long it takes to solve the model.
 
 ```{code-cell} ipython3
-model = create_elastic_labor_model()
+model = create_ez_model()
 # Unpack
 params, sizes, arrays = model
 β, R, γ, δ = params
-w_size, l_size, y_size = sizes
-w_grid, l_grid, y_grid, Q = arrays
+w_size, y_size = sizes
+w_grid, y_grid, Q = arrays
 ```
 
 ```{code-cell} ipython3
-print("Starting VFI for the elastic labor case.")
+print("Starting VFI for the EZ case.")
 start_time = time.time()
-v_star_el, σ_star_el = value_iteration_el_vmap(model)
-jax_el_elapsed = time.time() - start_time
-print(f"VFI completed in {jax_el_elapsed} seconds.")
+v_star_ez, σ_star_ez = value_iteration_ez_vmap(model)
+jax_ez_elapsed = time.time() - start_time
+print(f"VFI completed in {jax_ez_elapsed} seconds.")
 ```
 
-```{code-cell} ipython3
-v_star_el
-```
+Here's a plot of the policy function.
 
 ```{code-cell} ipython3
-jnp.max?
+fig, ax = plt.subplots()
+ax.plot(w_grid, w_grid, "k--", label="45")
+ax.plot(w_grid, w_grid[σ_star_ez[:, 1]], label="$\\sigma^*(\cdot, y_1)$")
+ax.plot(w_grid, w_grid[σ_star_ez[:, -1]], label="$\\sigma^*(\cdot, y_N)$")
+ax.legend()
+plt.show()
 ```
 
 ```{code-cell} ipython3
