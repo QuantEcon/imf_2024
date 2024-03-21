@@ -56,16 +56,15 @@ will join remotely and run a one hour session on the 27th.
   - Markov chains: Basic concepts (`finite_markov.ipynb`)
   - Intermezzo: A quick introduction to JAX (`jax_intro.ipynb`)
   - Wealth distribution dynamics (`wealth_dynamics.ipynb`)
-  - TBA
   - Day 2 homework: Markov chain exercises (`markov_homework.ipynb`)
 * Tuesday afternoon: Dynamic programming
+  - Job search (`job_search.ipynb`)
   - A simple optimal savings problem (`opt_savings_1.ipynb`)
   - Alternative algorithms: VFI, HPI and OPI (`opt_savings_2.ipynb`)
   - The endogenous grid method (`egm.ipynb`)
 * Wednesday morning: Heterogeneous agents
   - Heterogenous firms (`hopenhayn_jax.ipynb`)
   - The Aiyagari model (`aiyagari_jax.ipynb`)
-  - TBA
 * Wednesday afternoon: Further applications
   - Sovereign default
   - The Bianchi overborrowing model (`overborrowing.ipynb`, `bianchi.pdf`)
