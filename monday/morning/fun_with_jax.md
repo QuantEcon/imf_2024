@@ -118,8 +118,10 @@ x_jax = jnp.linspace(0, 10, n + 1)
 %time jnp.cos(x_jax).block_until_ready()
 ```
 
+The next line of code frees some memory -- can you explain why?
+
 ```{code-cell} ipython3
-x_jax = None
+x_jax = None  # Free memory
 ```
 
 ## Evaluating a more complicated function
@@ -145,6 +147,7 @@ Now let's try with a large array.
 ### With NumPy
 
 ```{code-cell} ipython3
+n = 50_000_000
 x = np.linspace(0, 10, n)
 ```
 
@@ -365,7 +368,6 @@ This uses the [modified Powell method](https://docs.scipy.org/doc/scipy/referenc
 ```{code-cell} ipython3
 :hide-output: false
 
-%%time
 solution = scipy.optimize.root(lambda p: e(p, A, b, c), init_p, method='hybr')
 ```
 
@@ -570,6 +572,10 @@ solution = scipy.optimize.root(lambda p: e(p, A, b, c),
 
 p = solution.x
 jnp.max(jnp.abs(e(p, A, b, c)))
+```
+
+```{code-cell} ipython3
+
 ```
 
 ```{code-cell} ipython3
