@@ -47,7 +47,7 @@ will join remotely and run a one hour session on the 27th.
   - Python and the AI revolution (`ai_revolution/ai_revolution.pdf`)
   - A taste of HPC with Python (`fun_with_jax.ipynb`)
   - A brief tour of Python's massive scientific computing ecosystem (`scientific_python/main.pdf`)
-  - Working with Jupyter
+  - Working with Jupyter (free coding)
 * Monday afternoon: Python basics
   - Core Python  (`quick_python_intro.ipynb`)
   - NumPy / SciPy / Matplotlib / Numba (`quick_scientific_python_intro.ipynb`)
@@ -64,10 +64,10 @@ will join remotely and run a one hour session on the 27th.
   - Alternative algorithms: VFI, HPI and OPI (`opt_savings_2.ipynb`)
   - The endogenous grid method (`egm.ipynb`)
 * Wednesday morning: Heterogeneous agents
-  - Heterogenous firms (`hopenhayn_jax.ipynb`)
-  - The Aiyagari model (`aiyagari_jax.ipynb`)
+  - Heterogenous firms (`hopenhayn.ipynb`)
+  - The Aiyagari model (`aiyagari.ipynb`)
 * Wednesday afternoon: Further applications
-  - Sovereign default
+  - Sovereign default (`arellano.ipynb`)
   - The Bianchi overborrowing model (`overborrowing.ipynb`, `bianchi.pdf`)
 
 
