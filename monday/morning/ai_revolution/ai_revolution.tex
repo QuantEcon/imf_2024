@@ -231,18 +231,15 @@
     We will discuss
 
     \begin{itemize}
+        \item Deep learning and AI
+        \vspace{0.5em}
         \item AI-driven scientific computing
         \vspace{0.5em}
         \item Where are we heading?
         \vspace{0.5em}
-        \item Economic applications?
+        \item How will that impact economic modeling for policy work?
     \end{itemize}
 
-        \vspace{0.5em}
-        \vspace{0.5em}
-    Sides
-
-    \url{https://github.com/QuantEcon/imf_2024}
 
 \end{frame}
 
@@ -254,20 +251,29 @@
     AI is changing the world
 
     \begin{itemize}
-        \item deep learning / other machine learning
-        \item large language models
-        \item computer vision
-        \item speech recognition
+        \item LLMs
+        \item image processing and computer vision
+        \item speech recognition, translation
         \item scientific knowledge discovery
-        \item forecasting and prediction, etc., etc.
+        \item forecasting and prediction 
     \end{itemize}
+
+    \pause
 
         \vspace{0.5em}
         \vspace{0.5em}
-    The huge amount of resources being poured into AI is changing the choice set
+    Plus killer drones, skynet, etc.\ldots
+
+    \pause
+        \vspace{0.5em}
+        \vspace{0.5em}
+        \navy{Key point:} vast investment in AI is changing the choice set
     for \emp{all} scientific coders
     
 \end{frame}
+
+
+
 
 
 \begin{frame}
@@ -298,7 +304,7 @@
 
 
 \begin{frame}
-    \frametitle{Lightening introduction to deep learning}
+    \frametitle{Deep learning in two slides}
     
     Supervised deep learning: find a good approximation to an unknown functional
     relationship
@@ -307,40 +313,48 @@
         y = f(x)
     \end{equation*}
 
-    \begin{itemize}
-        \item $x$ is the input and $y$ is the output
-    \end{itemize}
-
-        \vspace{0.5em}
-        \vspace{0.5em}
-        \vspace{0.5em}
     \Egs
     %
     \begin{itemize}
-        \item $x = $ unfinished sentence, $y = $ next word
+        \item $x = $ sequence of words, $y = $ next word
         \vspace{0.5em}
         \item $x = $ weather sensor data, $y = $ max temp tomorrow
     \end{itemize}
+        \vspace{0.5em}
+        \vspace{0.5em}
+
+    Problem:
+
+    \begin{itemize}
+        \item observe $(x_i, y_i)_{i=1}^n$ and seek $f$ such that $y_{n+1}
+            \approx f(x_{n+1})$
+    \end{itemize}
+
 
 \end{frame}
 
 
 \begin{frame}
-    \frametitle{Training}
 
-    Nonlinear regression: Take data set $(x_i, y_i)_{i=1}^n$ and solve
+    Nonlinear regression: minimize the empirical loss
     %
     \begin{equation*}
-        \min_\theta  \ell(\theta) = \sum_{i=1}^n (y_i - f_\theta(x_i))^2
+        \ell(\theta) := \sum_{i=1}^n (y_i - f_\theta(x_i))^2
         \quad \st \quad \theta \in \Theta
     \end{equation*}
 
+
+    \pause
+    But what is $\{f_\theta\}_{\theta \in \Theta}$?
+
+    \pause
     \vspace{0.5em}
     In the case of ANNs, we consider all $f_\theta$ having the form
     %
     \begin{equation*}
         f_\theta
-        = \sigma \circ A_{1} \circ \cdots \circ \sigma \circ A_{k} 
+        = \sigma \circ A_{1} 
+            \circ \cdots \circ \sigma \circ A_{k-1}  \circ \sigma \circ A_{k}
     \end{equation*}
     %
     where
@@ -357,7 +371,7 @@
 \begin{frame}
     
 
-    Minimizing a smooth loss functions
+    Minimizing a smooth loss functions  -- what algorithm?
     
     \begin{figure}
        \begin{center}
@@ -371,10 +385,12 @@
 
 
 \begin{frame}
+
+    Deep learning: $\theta \in \RR^d$ where $d = ?$
     
     \begin{figure}
        \begin{center}
-        \scalebox{0.18}{\includegraphics[trim={0cm 0cm 0cm 0cm},clip]{loss2.jpg}}
+        \scalebox{0.14}{\includegraphics[trim={0cm 0cm 0cm 0cm},clip]{loss2.jpg}}
        \end{center}
     \end{figure}
 
@@ -384,15 +400,35 @@
 
 \begin{frame}
     
+    But what about the curse of dimensionality!???
+
+\end{frame}
+
+\begin{frame}
+    \frametitle{Software}
+    
 
     Core elements
     %
     \begin{itemize}
-        \item automatic differentiation!
+        \item automatic differentiation (for \underline{gradient} descent)
         \vspace{0.5em}
-        \item parallelization (CPUs / GPUs / TPUs)!
+        \item parallelization (GPUs! --- how many?)
         \vspace{0.5em}
-        \item Compilers / JIT-compilers!
+        \item Compilers / JIT-compilers
+    \end{itemize}
+
+        \vspace{0.5em}
+        \vspace{0.5em}
+        \pause
+    Crucially, these components are all \underline{integrated}
+
+    \begin{itemize}
+        \item autodiff is JIT compiled
+        \vspace{0.5em}
+        \item JIT compiled functions are automatically parallelized
+        \vspace{0.5em}
+        \item etc.
     \end{itemize}
 
 \end{frame}
@@ -404,34 +440,58 @@
 import jax.numpy as jnp
 from jax import grad, jit
 
-def predict(params, x):
+def f(params, x):
   for W, b in params:
     y = jnp.dot(W, x) + b
     x = jnp.tanh(y)  
   return y                
 
-def loss(params, x, targets):
-  preds = predict(params, x)
-  return jnp.sum((preds - targets)**2)
+def loss(params, x, y):
+  return jnp.sum((f(params, x) - y)**2)
 
-grad_loss = jit(grad(loss))  
-# Now use gradient descent on the loss function
+grad_loss = jit(grad(loss))  # Now use gradient descent 
     \end{minted}
+
+
+    Source: Google JAX readthedocs
+
+\end{frame}
+
+
+\begin{frame} 
+    \frametitle{Hardware}
+    
+    ``NVIDIA today announced its next-generation AI supercomputer — the NVIDIA
+    DGX SuperPOD powered by GB200 Grace Blackwell Superchips — for
+    processing trillion-parameter models for superscale
+    generative AI training and inference workloads.
+    \vspace{0.5em}
+    \vspace{0.5em}
+
+    Featuring a new, highly efficient, liquid-cooled rack-scale architecture,
+    the DGX SuperPOD provides
+    11.5 exaflops of AI supercomputing and 240 terabytes of fast memory.''
+
+    \vspace{0.5em}
+    \vspace{0.5em}
+    ``NVIDIA supercomputers are the factories of the AI industrial
+    revolution.'' -- Jensen Huang
 
 \end{frame}
 
 
 
-
 \begin{frame}
+    \frametitle{Example: Weather forecasting}
 
     
     ``ECMWF's weather forecasting model is considered the gold standard for
-        medium-term weather forecasting\ldots 
-        Google DeepMind claims
-        in an non-peer-reviewed paper to have beat it 90\% of the time\ldots''
+        medium-term weather forecasting\ldots ''
+
+        \pause
 
     \vspace{0.5em}
+    Google DeepMind claims to now beat it 90\% of the time\ldots
     \vspace{0.5em}
 
     ``Traditional forecasting models are big, complex computer algorithms based
@@ -454,41 +514,43 @@ grad_loss = jit(grad(loss))
     \pause
     Deep learning provides massively powerful pattern recognition
 
-        \vspace{0.5em}
-    But macroeconomic data is 
+    \pause
+    \vspace{0.5em}
+    \vspace{0.5em}
+    \vspace{0.5em}
+    \navy{But} macroeconomic data is 
 
     \begin{itemize}
-        \item far more limited than weather observation sensor data
+        \item extremely limited 
         \vspace{0.5em}
         \item generally nonstationary
         \vspace{0.5em}
-        \item laws of motion change with policies (Lucas critique)
+        \item sensitve to policy changes (Lucas critique)
     \end{itemize}
 
-    \vspace{0.5em}
 
-    Possible applications:
-
-    \begin{itemize}
-        \item Finding stylized facts? Testing causal relationships?
-        \vspace{0.5em}
-        \item Numerical methods -- approximating high-dimensional functions
-    \end{itemize}
 
 \end{frame}
 
 
 \begin{frame}
     
-    One point of view
+    My view
 
     \begin{itemize}
-        \item Deep learning is not very relevant for policy-centric macroeconomic modeling
+        \item Policy-centric macroeconomic modeling will survive much longer
+            than traditional weather forecasting
         \vspace{0.5em}
         \item Deep learning is yet to prove itself as a ``better'' approach to
             numerical methods
         \vspace{0.5em}
-        \item And yet, at the same time, \navy{the AI computing revolution is
+    \end{itemize}
+
+    \pause
+    And yet, 
+
+    \begin{itemize}
+        \item \brown{the AI computing revolution is
             generating tools that are enormously beneficial for macroeconomic
         modeling}
         \vspace{0.5em}
@@ -496,8 +558,14 @@ grad_loss = jit(grad(loss))
                 \item autodiff, JIT compilers, parallelization, GPUs, etc.
             \end{itemize}
         \vspace{0.5em}
-        \item We can take full advantage of them right now\ldots
+        \item We can take full advantage of them right now
     \end{itemize}
+
+        \vspace{0.5em}
+        \vspace{0.5em}
+        \pause
+    And that's exactly what we're going to do!
+
 
 \end{frame}
 

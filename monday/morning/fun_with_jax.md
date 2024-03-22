@@ -86,8 +86,10 @@ x = np.linspace(0, 10, n)
 %time np.cos(x)
 ```
 
+The next line of code frees some memory -- can you explain why?
+
 ```{code-cell} ipython3
-x = None   # delete x
+x = None  
 ```
 
 ### With JAX
@@ -95,6 +97,10 @@ x = None   # delete x
 ```{code-cell} ipython3
 x_jax = jnp.linspace(0, 10, n)
 ```
+
+Let's run the same operation on JAX
+
+(The `block_until_ready()` method is explained a bit later.)
 
 ```{code-cell} ipython3
 %time jnp.cos(x_jax).block_until_ready()
@@ -117,8 +123,6 @@ x_jax = jnp.linspace(0, 10, n + 1)
 ```{code-cell} ipython3
 %time jnp.cos(x_jax).block_until_ready()
 ```
-
-The next line of code frees some memory -- can you explain why?
 
 ```{code-cell} ipython3
 x_jax = None  # Free memory
@@ -238,14 +242,20 @@ We will see that, in high dimensions, automatic differentiation and the GPU are 
 
 Let’s start by computing the market equilibrium of a two-good problem.
 
-Our first step is to define the excess demand function
+Here's the excess demand function
 
 $$
 e(p) = 
     \begin{pmatrix}
-    e_0(p) \\
-    e_1(p)
+    e_0(p_0, p_1) \\
+    e_1(p_0, p_1)
     \end{pmatrix}
+$$
+
+An equilibrium price vector is a $p=(p_0, p_1)$ such that
+
+$$
+e(p) = 0
 $$
 
 The function below calculates the excess demand for given parameters
@@ -363,7 +373,8 @@ We supply $ p = (1, 1) $ as our initial guess.
 init_p = np.ones(2)
 ```
 
-This uses the [modified Powell method](https://docs.scipy.org/doc/scipy/reference/optimize.root-hybr.html#optimize-root-hybr) to find the zero
+
+Now we use a standard hybrid algorithm to find the zero
 
 ```{code-cell} ipython3
 :hide-output: false
@@ -488,6 +499,7 @@ def newton(f, x_0, tol=1e-5, max_iter=15):
 ```{code-cell} ipython3
 :hide-output: false
 
+@jax.jit
 def e(p, A, b, c):
     return jnp.exp(- A @ p) + c - b * jnp.sqrt(p)
 ```
