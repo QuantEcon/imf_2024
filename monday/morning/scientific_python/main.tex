@@ -256,29 +256,40 @@
 \end{frame}
 
 \begin{frame}
-    \frametitle{Easy to learn}
+    \frametitle{Easy to learn / Readable}
+
+    \begin{itemize}
+        \item Python was designed to be easy to learn from the start.
+        \item Very high level -- The language gets out of your way and effectively allows you to
+            write (and run) pseudo-code
+        \item Easy to read (forces you to space out your code) which makes reviewing code from
+            others less of a chore
+    \end{itemize}
 
 \end{frame}
 
 \begin{frame}
-    \frametitle{Readability}
+    \frametitle{Interoperability / Ecosystem}
 
-\end{frame}
-
-\begin{frame}
-    \frametitle{Interoperability}
-
-    Both in terms of other tools and computer system
-
-\end{frame}
-
-\begin{frame}
-    \frametitle{Ecosystem}
+    \begin{itemize}
+        \item The fact that it is interpreted makes it easy to share with others -- Check out the
+            gravity waves \href{https://gwosc.org/s/events/GW150914/GW150914_tutorial.html}{notebook}!
+        \item Lots of great tools for running things like notebooks! Colab, JupyterLite, etc\dots
+        \item Significant amounts of collaboration/investment between large companies/universities
+    \end{itemize}
 
 \end{frame}
 
 \begin{frame}
     \frametitle{Open ethos}
+
+    \begin{itemize}
+        \item The Python community is very focused on ``openness''
+        \item The scientific community, including us within economics, should care about openness
+            because it allows us to make more progress
+        \item Some great initiatives for openness include QuantEcon, Policy Simulation Library,
+            etc\dots
+    \end{itemize}
 
 \end{frame}
 
@@ -413,9 +424,9 @@ y = 1.0 / x * math.sin(x)
     \begin{minted}{python}
 import math
 
-import numpy
+import numpy as np
 
-x = np.arange(0, 2 * math.pi, 50)
+x = np.linspace(0.0, 2 * math.pi, 50)
 y = 1.0 / x * np.sin(x)
 
 x@y
@@ -443,7 +454,7 @@ import math
 import numpy as np
 import scipy.interpolate as interp
 
-x = np.arange(0, 2 * math.pi, 50)
+x = np.linspace(0.01, 2 * math.pi, 50)
 y = 1.0 / x * np.sin(x)
 
 pwci = interp.CubicSpline(x, y)
