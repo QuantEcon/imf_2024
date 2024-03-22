@@ -353,29 +353,61 @@ too, and the following call is dispatched to the correct compiled code.
 %time f(x).block_until_ready()
 ```
 
-### Compiling the outer function
+### Compiling user-built functions
 
-We can do even better if we manually JIT-compile the outer function.
+We can instruct JAX to compile entire functions that we build.
+
+For example, consider
 
 ```{code-cell} ipython3
-f_jit = jax.jit(f)   # target for JIT compilation
+def g(x):
+    y = jnp.zeros_like(x)
+    for i in range(10):
+        y += x**i
+    return y
+```
+
+```{code-cell} ipython3
+n = 1_000_000
+x = jnp.ones(n)
+```
+
+Let's time it.
+
+```{code-cell} ipython3
+%time g(x)
+```
+
+```{code-cell} ipython3
+%time g(x)
+```
+
+```{code-cell} ipython3
+g_jit = jax.jit(g)   # target for JIT compilation
 ```
 
 Let's run once to compile it:
 
 ```{code-cell} ipython3
-f_jit(x)
+g_jit(x)
 ```
 
 And now let's time it.
 
 ```{code-cell} ipython3
-%time f_jit(x).block_until_ready()
+%time g_jit(x).block_until_ready()
+```
+
+```{code-cell} ipython3
+%time g_jit(x).block_until_ready()
 ```
 
 Note the speed gain.
 
-This is because the array operations are fused and no intermediate arrays are created.
+This is because 
+
+1. the loop is compiled and
+2. the array operations are fused and no intermediate arrays are created.
 
 
 Incidentally, a more common syntax when targetting a function for the JIT
@@ -383,17 +415,19 @@ compiler is
 
 ```{code-cell} ipython3
 @jax.jit
-def f(x):
-    a = 3*x + jnp.sin(x) + jnp.cos(x**2) - jnp.cos(2*x) - x**2 * 0.4 * x**1.5
-    return jnp.sum(a)
+def g_jit_2(x):
+    y = jnp.zeros_like(x)
+    for i in range(10):
+        y += x**i
+    return y
 ```
 
 ```{code-cell} ipython3
-%time f(x).block_until_ready()
+%time g_jit_2(x).block_until_ready()
 ```
 
 ```{code-cell} ipython3
-%time f(x).block_until_ready()
+%time g_jit_2(x).block_until_ready()
 ```
 
 ## Functional Programming
@@ -439,7 +473,6 @@ The issue is that the function maintains internal state between function calls -
 Here's a function that fails to be pure because it modifies external state.
 
 ```{code-cell} ipython3
-
 def double_input(x):   # Not pure -- side effects
     x[:] = 2 * x
     return None
@@ -792,12 +825,56 @@ jnp.allclose(z_vmap, z_mesh)
 
 **Exercise**
 
+In a previous notebook we used Monte Carlo to price a European call option and
+constructed a solution using Numba.
 
-In the Exercise section of [a lecture on Numba and
-parallelization](https://python-programming.quantecon.org/parallelization.html),
-we use Monte Carlo to price a European call option.
+The code looked like this:
 
-The code was accelerated by Numba-based multithreading.
+```{code-cell} ipython3
+import numba
+from numpy.random import randn
+M = 10_000_000
+
+n, β, K = 20, 0.99, 100
+μ, ρ, ν, S0, h0 = 0.0001, 0.1, 0.001, 10, 0
+
+@numba.jit(parallel=True)
+def compute_call_price_parallel(β=β,
+                                μ=μ,
+                                S0=S0,
+                                h0=h0,
+                                K=K,
+                                n=n,
+                                ρ=ρ,
+                                ν=ν,
+                                M=M):
+    current_sum = 0.0
+    # For each sample path
+    for m in numba.prange(M):
+        s = np.log(S0)
+        h = h0
+        # Simulate forward in time
+        for t in range(n):
+            s = s + μ + np.exp(h) * randn()
+            h = ρ * h + ν * randn()
+        # And add the value max{S_n - K, 0} to current_sum
+        current_sum += np.maximum(np.exp(s) - K, 0)
+        
+    return β**n * current_sum / M
+```
+
+Let's run it once to compile it:
+
+```{code-cell} ipython3
+compute_call_price_parallel()
+```
+
+And now let's time it:
+
+```{code-cell} ipython3
+%%time 
+compute_call_price_parallel()
+```
 
 Try writing a version of this operation for JAX, using all the same
 parameters.
@@ -855,4 +932,8 @@ And now let's time it:
 ```{code-cell} ipython3
 %%time 
 compute_call_price_jax().block_until_ready()
+```
+
+```{code-cell} ipython3
+
 ```
