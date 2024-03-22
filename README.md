@@ -51,12 +51,13 @@ will join remotely and run a one hour session on the 27th.
 * Monday afternoon: Python basics
   - Core Python  (`quick_python_intro.ipynb`)
   - NumPy / SciPy / Matplotlib / Numba (`quick_scientific_python_intro.ipynb`)
-  - Day 1 homework: Lorenz curves and Gini coefficients (`lorenz_gini.ipynb`)
+  - Exercises: Simulation (`simulation_exercises.ipynb`)
+  - Exercises: Lorenz curves and Gini coefficients (`lorenz_gini.ipynb`)
 * Tuesday morning: Markov models in Python
   - Markov chains: Basic concepts (`finite_markov.ipynb`)
   - Intermezzo: A quick introduction to JAX (`jax_intro.ipynb`)
   - Wealth distribution dynamics (`wealth_dynamics.ipynb`)
-  - Day 2 homework: Markov chain exercises (`markov_homework.ipynb`)
+  - Exercises: Markov chain exercises (`markov_homework.ipynb`)
 * Tuesday afternoon: Dynamic programming
   - Job search (`job_search.ipynb`)
   - A simple optimal savings problem (`opt_savings_1.ipynb`)
