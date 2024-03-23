@@ -13,6 +13,12 @@ kernelspec:
 
 # Wealth Dynamics
 
+------
+
+#### Chase Coleman and John Stachurski
+
+#### Prepared for the QuantEcon ICD Workshop (March 2024)
+
 In this lecture we examine wealth dynamics in large cross-section of agents who
 are subject to both 
 
@@ -49,7 +55,7 @@ import jax.numpy as jnp
 from time import time
 ```
 
-## Wealth dynamics: Numba version
+## Wealth dynamics
 
 
 Wealth evolves as follows:
@@ -89,8 +95,6 @@ $$
 The tuple $\{ (\epsilon_t, \xi_t, \zeta_t) \}$ is IID and standard normal in $\mathbb R^3$.
 
 (Each household receives their own idiosyncratic shocks.)
-
-We will set $c_r$ close to zero, since rates of return on assets do not exhibit large trends.
 
 Regarding the savings function $s$, our default model will be
 
@@ -338,10 +342,6 @@ def update_cross_section_jax(model, w_distribution, z_sequence, key):
     return w
 ```
 
-```{code-cell} ipython3
-
-```
-
 Let's see how long it takes to shift the cross-section of households forward
 using JAX
 
@@ -449,32 +449,121 @@ print(f"Total speed gain = {numba_time / jax_fori_time} seconds.\n")
 
 ### Lorenz curves and Gini coefficents
 
-To study inequality, we provide JAX-based functions that compute the Lorenz curve
-and the Gini coefficient.
+To study the impact of parameters on inequality, we examine Lorenz curves
+and the Gini coefficients at different parameters.
+
+QuantEcon provides functions to compute Lorenz curves and gini coefficients that are accelerated using Numba.
+
+Here we provide JAX-based functions that do the same job and are faster on parallel hardware.
+
+
+#### Lorenz curve
+
+We start with the Lorenz curve, which, for sorted data $w_1, \ldots, w_n$ 
+generates data points $(x_i, y_i)_{i=0}^n$  according to
+
+\begin{equation*}
+    x_0 = y_0 = 0
+    \qquad \text{and, for $i \geq 1$,} \quad
+    x_i = \frac{i}{n},
+    \qquad
+    y_i =
+       \frac{\sum_{j \leq i} w_j}{\sum_{j \leq n} w_j}  
+\end{equation*}
+
 
 ```{code-cell} ipython3
-def lorenz_curve_jax(y, y_size):
-    n = y.shape[0]
-    y = jnp.sort(y)
+def _lorenz_curve_jax(w, w_size):
+    n = w.shape[0]
+    w = jnp.sort(w)
     s = jnp.concatenate((jnp.zeros(1), jnp.cumsum(y)))
     _cum_p = jnp.arange(1, n + 1) / n
-    cum_income = s / s[n]
-    cum_people = jnp.concatenate((jnp.zeros(1), _cum_p))
-    return cum_people, cum_income
+    y = s / s[n]
+    x = jnp.concatenate((jnp.zeros(1), _cum_p))
+    return x, y
 
-lorenz_curve_jax = jax.jit(lorenz_curve_jax, static_argnums=(1,))
+lorenz_curve_jax = jax.jit(_lorenz_curve_jax, static_argnums=(1,))
 ```
 
-Here's a function that computes the Gini coefficient.
+Let's test 
 
 ```{code-cell} ipython3
-def gini_jax(y, y_size):
-    y_1 = jnp.reshape(y, (y_size, 1))
-    y_2 = jnp.reshape(y, (1, y_size))
-    g_sum = jnp.sum(jnp.abs(y_1 - y_2))
-    return g_sum / (2 * y_size * jnp.sum(y))
+sim_length = 200
+num_households = 1_000_000
+ψ_0 = jnp.full(num_households, y_mean)  # Initial distribution
+z_sequence = generate_aggregate_state_sequence(aggregate_params,
+                                               length=sim_length)
+z_sequence = jnp.array(z_sequence)
+```
 
-gini_jax = jax.jit(gini_jax, static_argnums=(1,))
+```{code-cell} ipython3
+
+key = jax.random.PRNGKey(1234)
+ψ_star = update_cross_section_jax_compiled(
+        model, ψ_0, num_households, z_sequence, key
+)
+```
+
+```{code-cell} ipython3
+%time _ = lorenz_curve_jax(ψ_star, num_households)
+```
+
+```{code-cell} ipython3
+%time _ = lorenz_curve_jax(ψ_star, num_households)
+```
+
+#### Gini Coefficient
+
++++
+
+Recall that, sorted data $w_1, \ldots, w_n$, the Gini coefficient takes the form
+
+\begin{equation}
+    \label{eq:gini}
+    G :=
+    \frac
+        {\sum_{i=1}^n \sum_{j = 1}^n |w_j - w_i|}
+        {2n\sum_{i=1}^n w_i}.
+\end{equation}
+
+
+Here's a function that computes the Gini coefficient using vectorization.
+
+```{code-cell} ipython3
+def _gini_jax(w, w_size):
+    w_1 = jnp.reshape(w, (w_size, 1))
+    w_2 = jnp.reshape(w, (1, w_size))
+    g_sum = jnp.sum(jnp.abs(w_1 - w_2))
+    return g_sum / (2 * w_size * jnp.sum(w))
+
+gini_jax = jax.jit(_gini_jax, static_argnums=(1,))
+```
+
+```{code-cell} ipython3
+%time gini = gini_jax(ψ_star, num_households).block_until_ready()
+gini
+```
+
+```{code-cell} ipython3
+def _partial_gini_jax(w_val, w_vec):
+    return jnp.sum(jnp.abs(w_val - w_vec))
+    
+partial_gini_jax = jax.vmap(_partial_gini_jax, in_axes=(0, None))
+
+def _gini_jax_vmap(w_vec, w_size):
+    full_sum = jnp.sum(partial_gini_jax(w_vec, w_vec))
+    return full_sum / (2 * w_size * jnp.sum(w_vec))
+
+gini_jax_vmap = jax.jit(_gini_jax_vmap, static_argnums=(1,))
+```
+
+```{code-cell} ipython3
+%time gini = gini_jax_vmap(ψ_star, num_households).block_until_ready()
+gini
+```
+
+```{code-cell} ipython3
+
 ```
 
 ### Inequality and dynamics

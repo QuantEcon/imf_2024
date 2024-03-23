@@ -13,6 +13,11 @@ kernelspec:
 
 # Bianchi Overborrowing Model
 
+-----
+
+#### Chase Coleman and John Stachurski
+
+#### Prepared for the QuantEcon ICD Workshop (March 2024)
 
 This notebook provides a Python/JAX implementation of "Overborrowing and Systemic Externalities" (AER 2011) by [Javier Bianchi](http://www.javierbianchi.com/).
 
@@ -36,13 +41,29 @@ import seaborn
 The model seeks to explain sudden stops in emerging market economies, where
 painful financial disruption follows a period of sustained heavy borrowing.
 
-Households are credit constrained, with the constraint being a function of the
-price of nontradables and current income.
+A representative household chooses how much to borrow on international markets and how much to consume.
+
+The household is credit constrained, with the constraint depending on both current income and the real exchange rate.
 
 The model shows that household overborrow because they do not internalize the
 effect of borrowing on the credit constraint.
 
 This overborrowing leaves them vulnerable to bad shocks in current income.
+
+In essence, the model works as follows
+
+1. During good times, households borrow more and consume more
+2. Increased consumption pushes up the price of nontradables and hence the real exchange rate
+3. A rising real exchange rate loosens the credit constraint and encourages more borrowing
+4. This leads to excessive borrowing relative to a planner.
+
+This overborrowing leads to vulnerability vis-a-vis bad shocks.
+
+1. When a bad shock hits, borrowing is restricted.
+2. Consumption now falls, pushing down the real exchange rate.
+3. This fall in the exchange rate further tightens the borrowing constraint, amplifying the shock
+
++++
 
 ### Decentralized equilibrium
 
@@ -55,6 +76,8 @@ an expected sum of discounted utility where
 
 Here $c_t$ ($c_n$) is consumption of tradables (nontradables).
 
++++
+
 The household maximizes subject to the budget constraint
 
 $$
@@ -63,7 +86,7 @@ $$
 
 where
 
-$ $b$ is bond holdings (positive values denote assets)
+* $b$ is bond holdings (positive values denote assets)
 * primes denote next period values
 * the interest rate $r$ is exogenous
 * $p_n$ is the price of nontradables, while the price of tradables is normalized
@@ -71,6 +94,8 @@ $ $b$ is bond holdings (positive values denote assets)
 * $y_t$ and $y_n$ are current tradable and nontradable income
 
 The process for $y := (y_t, y_n)$ is first-order Markov.
+
++++
 
 The household also faces the credit constraint
 
@@ -99,39 +124,44 @@ $$
 
 subject to the budget and credit constraints.
 
++++
+
 A decentralized equilibrium is a law of motion $H$ such that the implied savings 
 policy $b' = b'(b, B, y)$ verifies 
 
 $$
     b'(B, B, y) = H(B, y)
+    \quad \text{for all } B, y
 $$
 
-### Some simplifications
++++
+
+### Notation
 
 Let
 
 $$
-        w(c_t, y_n) := \frac{c^{1 - σ}}{1 - σ}
+        w(c_t, y_n) = \frac{c^{1 - σ}}{1 - σ}
         \quad \text{where} \quad
         c = [ω c_t^{- η} + (1 - ω) y_n^{- η}]^{-1/η}
 $$
 
-Using the market clearing conditions and the definition of $c$, we can write the
+Using the market clearing conditions, we can write the
 household problem as
 
 $$
     V(b, B, y)
     = \max_{b'} 
     \left\{
-        w((1 + r)  b + y_t - b', y_n) + \beta \mathbb{E}_y v(b', B', y')
+        w((1 + r)  b + y_t - b', y_n) + \beta \mathbb{E}_y v(b', H(B, y), y')
     \right\}
 $$
 
 subject to 
 
 $$
-    b' \geq - κ (p_n y_n + y_t) 
-    \quad \text{and} \quad
+    - κ (p_n y_n + y_t) 
+    \leq
     b' \leq (1 + r) b + y_t
 $$
 
@@ -143,7 +173,7 @@ $$
     C := (1 + r) B + y_t - H(B, y)
 $$
 
-
++++
 
 ### Constrained planner
 
@@ -158,10 +188,10 @@ $$
 $$
 
 subject to the market clearning conditions and 
-the same credit constraint
+the same constraint
 
 $$
-    b' \geq - \kappa (y_t + p_n y_n)
+     - \kappa (y_t + p_n y_n) \leq b' \leq (1+r) b + y_t
 $$
 
 although the price of nontradable is now given by
@@ -173,8 +203,9 @@ $$
 $$
 
 We see that the planner internalizes the impact of the savings choice $b'$ on
-the price of nontradable and hence the credit constraint.
+the price of nontradables and hence the credit constraint.
 
++++
 
 ## Markov dynamics
 
@@ -209,7 +240,9 @@ A = np.array(A)
 ```
 
 Here's a function to convert the VAR process to a Markov chain evolving on a
-rectilinear grid of points in $\RR^2$.
+rectilinear grid of points in $\mathbb R^2$.
+
+Under the hood, this function uses the QuantEcon function `discrete_var`.
 
 ```{code-cell} ipython3
 def discretize_income_var(A=A, C=C, grid_size=4, seed=1234):
@@ -346,7 +379,7 @@ def create_overborrowing_model(
         σ=2,                 # CRRA utility parameter
         η=(1/0.83)-1,        # Elasticity = 0.83, η = 0.2048
         β=0.91,              # Discount factor
-        ω=0.31,              # Share for tradables
+        ω=0.31,              # Aggregation constant
         κ=0.3235,            # Constraint parameter
         r=0.04,              # Interest rate
         b_size=400,          # Bond grid size
@@ -356,13 +389,14 @@ def create_overborrowing_model(
     """
     Creates an instance of the overborrowing model using 
 
-        * default parameter values from Bianchi AER 2011 with κ_n = κ_t = κ.
+        * default parameter values from Bianchi (2011)
         * Markov dynamics from Yamada (2023)
 
     The Markov kernel Q has the interpretation
 
-        Q[i, j, ip, jp] = one step prob of moving from 
-                            (y_t[i], y_n[j]) to (y_t[ip], y_n[jp])
+        Q[i, j, ip, jp] = one step prob of moving 
+
+            (y_t[i], y_n[j]) -> (y_t[ip], y_n[jp])
 
     """
     # Read in Markov data and shift to JAX arrays
@@ -429,18 +463,19 @@ def T_generator(v, H, parameters, arrays, i_b, i_B, i_y_t, i_y_n, i_bp):
     # Unpack
     σ, η, β, ω, κ, r = parameters
     b_grid, y_t_nodes, y_n_nodes, Q = arrays
-    # Evaluate states and actions at indices
+    # Compute next period aggregate bonds given H
     i_Bp = H[i_B, i_y_t, i_y_n]
+    # Evaluate states and actions at indices
+    B, Bp, b, bp = b_grid[i_B], b_grid[i_Bp], b_grid[i_b], b_grid[i_bp]
     y_t = y_t_nodes[i_y_t]
     y_n = y_n_nodes[i_y_n]
-    B, Bp, b, bp = b_grid[i_B], b_grid[i_Bp], b_grid[i_b], b_grid[i_bp]
     # Compute price of nontradables using aggregates
     C = (1 + r) * B + y_t - Bp
     p = ((1 - ω) / ω) * (C / y_n)**(η + 1)
     # Compute household flow utility
     c = (1 + r) * b + y_t - bp
     utility = w(parameters, c, y_n)
-    # Compute expected value (continuation)
+    # Compute expected value Σ_{y'} v(b', B', y') Q(y, y')
     EV = jnp.sum(v[i_bp, i_Bp, :, :] * Q[i_y_t, i_y_n, :, :])
     # Set up constraints 
     credit_constraint_holds = - κ * (p * y_n + y_t) <= bp
@@ -526,7 +561,8 @@ Here's some code for value function iteration (VFI).
 ```{code-cell} ipython3
 def vfi(T, v_init, max_iter=10_000, tol=1e-5):
     """
-    Solve for the value function and update rule given H.
+    Use successive approximation to compute the fixed point of T, starting from
+    v_init.
 
     """
     v = v_init
@@ -548,7 +584,7 @@ def vfi(T, v_init, max_iter=10_000, tol=1e-5):
 vfi = jax.jit(vfi, static_argnums=(0,))
 ```
 
-This is how we update our guess of $H$, using the current policy $b'(B, B, y)$
+This is how we update our guess of $H$, using the current policy $b'$
 and a damped fixed point iteration scheme.
 
 ```{code-cell} ipython3
@@ -764,12 +800,12 @@ dynamics for income.
 
 Nonetheless, it is qualitatively similar.
 
-### Ergodic distributions
+**Exercise**
 
-Let's now look at the ergodic distribution of borrowing in the decentralized and
+Your task is to examine the ergodic distribution of borrowing in the decentralized and
 planner equilibria.
 
-We will use simulation and a kernel density estimate.
+We recomend that you use simulation and a kernel density estimate.
 
 Here's a function for generating the borrowing sequence.
 
@@ -794,7 +830,24 @@ def generate_borrowing_sequence(H, y_t_series, y_n_series):
     return B
 ```
 
-Let's generate a time path for income
+Note that you will have to convert JAX arrays into NumPy arrays if you want to use this function.
+
+From here you will need to 
+
+* generate a time path for income $y = (y_t, y_n)$ using one of the functions provided above.
+* use the function `generate_borrowing_sequence` plus `H_eq` and `H_plan` to calculate bond holdings for the planner and the decentralized equilibrium
+* produce a kernel density plot for each of these data sets
+
+If you are successful, your plot should look something like Fig 2 of Bianchi (2011) --- although not exactly the same, due to the alternative specification of the Markov process.
+
+To generate a kernel density plot, we recommend that you use `kdeplot` from the package `seaborn`, which is included in Anaconda.
+
+```{code-cell} ipython3
+for i in range(12):
+    print("Solution below.")
+```
+
+**Solution**
 
 ```{code-cell} ipython3
 sim_length = 100_000

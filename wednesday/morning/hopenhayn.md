@@ -11,18 +11,26 @@ kernelspec:
   name: python3
 ---
 
-# The Hopenhayn Entry-Exit Model: JAX Version
+# The Hopenhayn Entry-Exit Model
+
+------
+
+#### Chase Coleman and John Stachurski
+
+#### Prepared for the ICD Training Course (March 2024)
 
 ## Outline
 
-The Hopenhayn (1992, ECMA) entry-exit model is a highly influential heterogeneous agent model where 
+The Hopenhayn (1992, ECMA) entry-exit model is a highly influential (partial equilibrium) heterogeneous agent model where 
 
 * the agents receiving idiosyncratic shocks are firms, and
 * the model produces a non-trivial firm size distribution and a range of predictions for firm dynamics.
 
 We are going to study an extension of the basic model that has unbounded productivity.
 
-This allows us to match the very heavy tail observed in the firm size distribution data.
+Among other things, this allows us to match the heavy tail observed in the firm size distribution data.
+
+The code for computing the equilibrium will be written in Python/JAX.
 
 We will use the following imports.
 
@@ -40,19 +48,23 @@ from collections import namedtuple
 ## The Model
 
 
-### Description
+### Environment
 
-There is a single good produced by a continuum of competitive firms, with productivity of each firm evolving randomly on $\mathbb R_+$.
+There is a single good produced by a continuum of competitive firms.
+
+The productivity $\varphi_t = \varphi_t^i$ of each firm evolves randomly on $\mathbb R_+$.
+
+* the $i$ superscript indicates the $i$-th firm and we drop it in what follows
 
 A firm with productivity $\varphi$ facing output price $p$ and wage rate $w$ earns current profits
 
 $$
-    \pi(\varphi, p) = p \varphi n^\theta - c  - wn.
+    \pi(\varphi, p) = p \varphi n^\theta - c  - wn
 $$
 
 Here 
 
-- $\theta$ is a productivity parameter, 
+- $\theta \in (0,1)$ is a productivity parameter, 
 - $c$ is a fixed cost and 
 - $n$ is labor input.
 
@@ -78,15 +90,15 @@ Productivity of incumbents is independent across firms and grows according to
 $$ \varphi_{t+1} \sim \Gamma(\varphi_t, d \varphi') $$
 
 Here $\Gamma$ is a Markov transition kernel, so that $\Gamma(\varphi, d
-                                                             \varphi')$ is a
-distribution over $\mathbb R_+$ for each $\varphi \in \mathbb R_+$, and
+                                                             \varphi')$ is the
+distribution over $\mathbb R_+$ given $\varphi \in \mathbb R_+$.
 
-$$
-    \mathbb P\{\varphi_{t+1} \in B \, | \, \varphi_t = \varphi\} =
-    \Gamma(\varphi, B)
-$$
+For example,
 
-for any Borel subset $B$ of $\mathbb R_+$.
+$$ 
+   \int \pi(\varphi', p) \Gamma(\varphi, d \varphi')
+    = \mathbb E[ \pi(\varphi_{t+1}, p) \,|\, \varphi_t = \varphi ]
+$$
 
 New entrants obtain their productivity draw from a fixed distribution $\gamma$.
 
@@ -154,7 +166,7 @@ To begin, let $\mathscr B$ be the Borel subsets of $\mathbb R_+$ and $\mathscr M
 on $\mathscr B$.  
 
 Taking $\bar v$ and $\bar \varphi$ as defined in the previous
-section, a *stationary recursive equilibrium*  is a triple 
+section, a **stationary recursive equilibrium**  is a triple 
 %
 \begin{equation*}
     (p, M, \mu) \quad \text{ in } \quad
@@ -240,17 +252,20 @@ When we compute the distribution $\mu$ in step 3, we will use the fact that it
 is the stationary distribution of the Markov transition kernel $\Pi(\varphi, d
                                                                     \varphi)$.
 
-This transition kernel turns out to be *ergodic*, which means that if we simulate a cross-section of firms according to $\Pi_p$ for a large number of periods, the resulting sample (cross-section of productivities) will approach a set of IID draws from $\mu$.  
+This transition kernel turns out to be *ergodic*, which means that if we simulate a cross-section of firms according to $\Pi$ for a large number of periods, the resulting sample (cross-section of productivities) will approach a set of IID draws from $\mu$.  
 
-This allows us to compute integrals with respect to the distribution using Monte Carlo, as well as to investigate the shape and properties of the distribution.
+This allows us to 
+
+1. compute integrals with respect to the distribution using Monte Carlo, and
+2. investigate the shape and properties of the stationary distribution.
 
 +++
 
 ### Specification of dynamics
 
-We specify the dynamics and entry distribution as follows.
+Before solving the model we need to specify $\Gamma$ and $\gamma$.
 
-The productivity kernel $\Gamma(\varphi, d \varphi')$ is given by
+We assume $\Gamma(\varphi, d \varphi')$ is given by
 
 $$
     \varphi_{t+1} = A_{t+1} \varphi_t 
@@ -292,8 +307,8 @@ Parameters = namedtuple("Parameters",
 ```{code-cell} ipython3
 Grids = namedtuple("Grids",
     ("φ_grid",        # productivity grid
-     "E_draws",       # entry size draws for MC
-     "A_draws"))      # productivity shock draws for MC
+     "E_draws",       # entry size draws for Monte Carlo
+     "A_draws"))      # productivity shock draws for Monte Carlo
 ```
 
 ```{code-cell} ipython3
@@ -323,10 +338,12 @@ def create_model(β=0.95,             # discount factor
     
     # Test stability
     assert m_a + σ_a**2 / (2 * (1 - θ)) < 0, "Stability condition fails"
-    # Build grids and draw Monte Carlo samples
+    # Build grids and initialize random number generator
     φ_grid = jnp.linspace(0, φ_grid_max, φ_grid_size)
     key, subkey = random.split(random.PRNGKey(seed))
+    # Generate a sample of draws of A for Monte Carlo integration
     A_draws = jnp.exp(m_a + σ_a * jax.random.normal(key, (A_draw_size,)))
+    # Generate a sample of draws from γ for Monte Carlo
     E_draws = jnp.exp(m_e + σ_e * jax.random.normal(subkey, (E_draw_size,)))
     # Build namedtuple and return
     parameters = Parameters(β, θ, c, c_e, w, m_a, σ_a, m_e, σ_e)
@@ -357,24 +374,28 @@ def q(φ, p, parameters):
     return φ**(1/(1 - θ)) * (p * θ/w)**(θ/(1 - θ)) 
 ```
 
-The next function simulates a cross-section of firms given a particular value for the exit threshold (rather than an exit threshold function).
+Let's write code to simulate a cross-section of firms given a particular value for the exit threshold (rather than an exit threshold function).
 
-Firms that exit are immediately replaced by a new entrant, drawn from the new entrant distribution.
+Firms that exit are immediately replaced by a new entrant, drawn from $\gamma$.
+
+Our first function updates by one step
 
 ```{code-cell} ipython3
 def update_cross_section(φ_bar, φ_vec, key, parameters, num_firms):
     # Unpack
     β, θ, c, c_e, w, m_a, σ_a, m_e, σ_e = parameters
     # Update
-    Z = random.normal(key, (num_firms, 2))
-    incumbent_draws = φ_vec * jnp.exp(m_a + σ_a * Z[:, 0])
-    new_firm_draws = jnp.exp(m_e + σ_e * Z[:, 1])
+    Z = random.normal(key, (2, num_firms))  # long rows for row-major arrays
+    incumbent_draws = φ_vec * jnp.exp(m_a + σ_a * Z[0, :])
+    new_firm_draws = jnp.exp(m_e + σ_e * Z[1, :])
     return jnp.where(φ_vec >= φ_bar, incumbent_draws, new_firm_draws)
 ```
 
 ```{code-cell} ipython3
 update_cross_section = jax.jit(update_cross_section, static_argnums=(4,))
 ```
+
+Our next function runs the cross-section forward in time `sim_length` periods.
 
 ```{code-cell} ipython3
 def simulate_firms(φ_bar, parameters, grids, 
@@ -393,22 +414,52 @@ def simulate_firms(φ_bar, parameters, grids,
     return φ_vec
 ```
 
+Here's a utility function to compute the expected value
+
+$$
+    \int v(\varphi') \Gamma(\varphi, d \varphi') = \mathbb E v(A_{t+1} \varphi)
+$$
+
+given $\varphi$ 
+
 ```{code-cell} ipython3
 @jax.jit
-def compute_exp_value(v, grids):
+def _compute_exp_value_at_phi(v, φ, grids):
     """
-    Compute E[v(φ_prime)| φ] = Ev(A φ) for all φ, as a vector, using Monte
-    Carlo. The method is to form matrix v(A_j φ_i) and then take the mean 
-    along j.
-
+    Compute 
+    
+        E[v(φ')| φ] = Ev(A φ) 
+        
+    using linear interpolation and Monte Carlo. 
     """
     # Unpack
     φ_grid, E_draws, A_draws = grids
     # Set up V
-    Aφ = jnp.outer(φ_grid, A_draws)   # Aφ[i, j] = A_j φ_i
-    vAφ  = jnp.interp(Aφ, φ_grid, v)  # v(A_j φ_i)
+    Aφ = A_draws * φ 
+    vAφ  = jnp.interp(Aφ, φ_grid, v)  # v(A_j φ) for all j
     # Return mean 
-    return jnp.mean(vAφ, axis=(1,))     # (1/n) Σ_j v(A_j φ_i)
+    return jnp.mean(vAφ)     # (1/n) Σ_j v(A_j φ)
+```
+
+
+Now let's vectorize this function in $\varphi$ and then write another function that computes the expected value across all $\varphi$ in `φ_grid`
+
+```{code-cell} ipython3
+compute_exp_value_at_phi = jax.vmap(_compute_exp_value_at_phi, (None, 0, None))
+```
+
+```{code-cell} ipython3
+@jax.jit
+def compute_exp_value(v, grids):
+    """
+    Compute 
+    
+        E[v(φ_prime)| φ] = Ev(A φ) for all φ, as a vector
+
+    """
+    # Unpack
+    φ_grid, E_draws, A_draws = grids
+    return compute_exp_value_at_phi(v, φ_grid, grids)
 ```
 
 Here is the Bellman operator $T$.
@@ -440,7 +491,7 @@ def get_threshold(v, grids):
     return φ_grid[i]
 ```
 
-We use value function iteration (VFI) to compute the value function.
+We use value function iteration (VFI) to compute the value function $\bar v(\cdot, p)$, taking $p$ as given.
 
 VFI is relatively cheap and simple in this setting.
 
@@ -488,6 +539,18 @@ def compute_net_entry_value(p, v_init, parameters, grids):
     Ev_φ = jnp.mean(v_φ)
     return Ev_φ - c_e, v_bar
 ```
+
+We need to solve for the equilibrium price, which is the $p$ satisfying
+
+$$
+\int \bar v(\varphi', p) \gamma(d \varphi') = c_e
+$$
+
+At each price $p$, we need to recompute $\bar v(\cdot, p)$ and then take the expectation.
+
+The technique we will use is bisection.
+
+We will write our own bisection routine because, when we shift to a new price, we want to update the initial condition for value function iteration to the value function from the previous price.
 
 ```{code-cell} ipython3
 def compute_p_star(parameters, grids, p_min=1.0, p_max=2.0, tol=10e-5):
@@ -548,13 +611,13 @@ def compute_equilibrium_prices_and_quantities(model):
     return p_star, v_bar, φ_star, φ_sample, s, m_star
 ```
 
-## Plots
+## Solving the model
 
-### Some visualizations
+### Preliminary calculations
 
 +++
 
-We create an instance of the model and solve for the equilibrium.
+Let's create an instance of the model.
 
 ```{code-cell} ipython3
 model = create_model()
@@ -567,15 +630,11 @@ from a cold start.
 ```{code-cell} ipython3
 p = 2.0
 v_init = jnp.zeros_like(grids.φ_grid)            # Initial condition 
-v_bar = vfi(p, v_init, parameters, grids)  # Compute once with compile time
+%time v_bar = vfi(p, v_init, parameters, grids) 
 ```
 
 ```{code-cell} ipython3
-print("Solving for v_bar.")
-start_time = time.time()
-v_bar = vfi(p, v_init, parameters, grids)  # Compute once with compile time
-t = time.time() - start_time
-print(f"Computed v_bar in {t} seconds.")
+%time v_bar = vfi(p, v_init, parameters, grids)  
 ```
 
 Let's have a look at the net entry value as a function of price
@@ -599,24 +658,38 @@ ax.set_ylabel("value")
 plt.show()
 ```
 
+Below we solve for the zero of this function to calculate $p*$.
+
+From the figure it looks like $p^*$ will be close to 1.5.
+
++++
+
+### Computing the equilibrium
+
++++
+
 Now let's try computing the equilibrium
 
 ```{code-cell} ipython3
-print("Computing equilibrium.")
-start_time = time.time()
+%%time
 p_star, v_bar, φ_star, φ_sample, s, m_star = \
         compute_equilibrium_prices_and_quantities(model)
-t = time.time() - start_time
-print(f"Computed equilibrium in {t} seconds.")
 ```
 
-Here is a plot of the value function $\bar v$.
+Let's check that $p^*$ is close to 1.5
+
+```{code-cell} ipython3
+p_star
+```
+
+Here is a plot of the value function $\bar v(\cdot, p^*)$.
 
 ```{code-cell} ipython3
 fig, ax = plt.subplots()
-ax.plot(grids.φ_grid, v_bar)
+ax.plot(grids.φ_grid, v_bar, label=r'$\varphi \mapsto \bar v(\varphi, p^*)$')
 ax.set_xlabel("productivity")
 ax.set_ylabel("firm value")
+ax.legend()
 plt.show()
 ```
 
@@ -636,54 +709,29 @@ ax.legend()
 plt.show()
 ```
 
-```{code-cell} ipython3
-
-```
-
-### Fixed costs and the number of entrants
-
-+++
-
-As an experiment, let's look at the fixed cost paid by incumbents each period and how it relates to the number of entrants.
-
-We expect that a higher fixed cost will encourage early exit, and hence, in stationary equilibrium, more entrants.
-
-Let's check that this is the case.
-
-```{code-cell} ipython3
-c_values = np.linspace(2.5, 5.0, 10)
-entrants = np.empty_like(c_values)
-for i, c in enumerate(c_values):
-    model = create_model(c=c)
-    p_star, v_bar, φ_star, φ_sample, s, m_star = \
-        compute_equilibrium_prices_and_quantities(model)
-    entrants[i] = m_star
-    print(f"Mass of entrants when c = {c} is {m_star}")
-
-fig, ax = plt.subplots()
-ax.plot(c_values, entrants, label="number of entrants")
-ax.set_xlabel("fixed cost for incumbents")
-ax.set_ylabel("mass of entrants")
-plt.show()
-```
-
 ## Pareto tails
 
 +++
 
-One way to investigate the rank-size plot, which should be approximately linear for Pareto tails.
+The firm size distribution shown above appears to have a long right tail.
 
-```{code-cell} ipython3
-rank_data, size_data = qe.rank_size(output_dist, c=0.01)
-fig, ax = plt.subplots(figsize=(7,4))
-ax.loglog(rank_data, size_data, "o", markersize=3.0, alpha=0.5)
-ax.set_xlabel("log rank")
-ax.set_ylabel("log size")
-#plt.savefig("fsd_pareto.pdf")
-plt.show()
-```
+This matches the observed firm size distribution.
 
-Another option is to look at the empirical counter CDF (cumulative distribution).
+In fact the firm size distribution obeys a **power law**.
+
+More mathematically, the distribution of firm size has a Pareto right hand tail, so that there exist constants $k, \alpha > 0$ with
+
+$$
+   \mu((x, \infty)) \approx kx^{-\alpha} \text{ when $x$ is large}
+$$
+
+Here $\alpha$ is called the tail index.
+
+Does the model replicate this feature?
+
++++
+
+One option is to look at the empirical counter CDF (cumulative distribution).
 
 The idea is as follows: The counter CDF of a random variable $X$ is 
 
@@ -691,7 +739,7 @@ $$
    G(x) := \mathbb P\{X > x\}
 $$
 
-In the case of a Pareto tailed distribution we have $\mathbb P\{X > x\} \approx k x^{-\alpha}$ for large $x$, where $\alpha, k > 0$ and $\alpha$ is called the tail index.
+In the case of a Pareto tailed distribution we have $\mathbb P\{X > x\} \approx k x^{-\alpha}$ for large $x$.
 
 Hence, for large $x$,
 
@@ -719,21 +767,102 @@ def ECCDF(data):
     def eccdf(x):
         return np.mean(data > x)
     return eccdf
+```
 
+Let's plot the empirical counter CDF of the output distribution.
 
-# +
-
+```{code-cell} ipython3
 eccdf = ECCDF(output_dist)
 
-# +
 ϵ = 10e-10
 x_grid = np.linspace(output_dist.min()+ϵ, output_dist.max()-ϵ, 200)
 y = [eccdf(x) for x in x_grid]
 
 fix, ax = plt.subplots()
-ax.plot(np.log(x_grid), np.log(y), 'o', label="ECCDF")
-ax.set_xlabel("log productivity")
-ax.set_ylabel("log counter CDF")
+ax.loglog(x_grid, y, 'o', label="ECCDF")
+ax.set_xlabel("productivity")
+ax.set_ylabel("counter CDF")
+plt.show()
+```
+
+**Exercise**
+
+Plot the same output distribution, but this time using a rank-size plot.
+
+If the rank-size plot is approximately linear, the data suggests a Pareto tail.
+
+You can use QuantEcon's `rank_size` function --- here's an example of usage.
+
+```{code-cell} ipython3
+x = np.abs(np.random.randn(1_000_000))
+rank_data, size_data = qe.rank_size(x, c=0.1)
+fig, ax = plt.subplots(figsize=(7,4))
+ax.loglog(rank_data, size_data, "o", markersize=3.0, alpha=0.5)
+ax.set_xlabel("log rank")
+ax.set_ylabel("log size")
+plt.show()
+```
+
+This plot is not linear --- as expected, since we are using a folded normal distribution.
+
+```{code-cell} ipython3
+for i in range(12):
+    print("solution below.")
+```
+
+**Solution**
+
+```{code-cell} ipython3
+rank_data, size_data = qe.rank_size(output_dist, c=0.1)
+fig, ax = plt.subplots(figsize=(7,4))
+ax.loglog(rank_data, size_data, "o", markersize=3.0, alpha=0.5)
+ax.set_xlabel("log rank")
+ax.set_ylabel("log size")
+plt.show()
+```
+
+This looks very linear --- the model generates Pareto tails.
+
+(In fact it's possible to prove this.)
+
++++
+
+**Exercise**
+
+
++++
+
+As an exercise, let's look at the fixed cost paid by incumbents each period and how it relates to the equilibrium price.
+
+We expect that a higher fixed cost will reduce supply and hence increase the market price.
+
+For the fixed costs, use
+
+```{code-cell} ipython3
+c_values = np.linspace(2.5, 5.0, 10)
+```
+
+```{code-cell} ipython3
+for i in range(12):
+    print("solution below.")
+```
+
+**Solution**
+
+```{code-cell} ipython3
+eq_prices = np.empty_like(c_values)
+for i, c in enumerate(c_values):
+    model = create_model(c=c)
+    p_star, v_bar, φ_star, φ_sample, s, m_star = \
+        compute_equilibrium_prices_and_quantities(model)
+    eq_prices[i] = p_star
+    print(f"Equilibrium price when c = {c:.2} is {p_star:.2}")
+
+fig, ax = plt.subplots()
+ax.plot(c_values, eq_prices, label="$p^*$")
+ax.set_xlabel("fixed cost for incumbents")
+ax.set_ylabel("price")
+ax.legend()
 plt.show()
 ```
 

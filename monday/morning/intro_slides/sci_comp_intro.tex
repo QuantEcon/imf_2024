@@ -238,93 +238,54 @@
 \end{frame}
 
 
+\begin{frame}
+    
+    This morning:
+
+    \begin{enumerate}
+        \item Bird's eye view of scientific computing
+        \vspace{0.5em}
+        \item The AI revolution and its impact on scientific computing
+        \vspace{0.5em}
+        \item The Python language and its scientific ecosystem
+        \vspace{0.5em}
+        \item Working with Jupyter
+    \end{enumerate}
+
+\end{frame}
 
 
 \begin{frame}
-    \frametitle{Background}
-
-    We start with some background on modern scientific computing.
+    \frametitle{Bird's eye view of scientific computing}
 
     \vspace{0.5em}
+    \vspace{0.5em}
+    Topics covered in these slides
+    \vspace{0.5em}
 
-    \begin{itemize}
-        \item Traditional compiled languages
-        \vspace{0.5em}
-        \item Interpreted languages and ``vectorization''
-        \vspace{0.5em}
-        \item Modern JIT compilers
-        \vspace{0.5em}
-        \item Parallelization
-    \end{itemize}
-
-\end{frame}
-
-
-
-\begin{frame}
-
-    Some trends: 
-
-    \begin{figure}
-       \begin{center}
-        \scalebox{0.4}{\includegraphics{pvr.png}}
-       \end{center}
-    \end{figure}
-
-    Source: Stackoverflow Trends
-
-\end{frame}
-
-
-\begin{frame}
-
-    Stack Overflow 2023 Developer Survey (50 languages)
-
-
-    \begin{figure}
-       \begin{center}
-        \scalebox{0.5}{\includegraphics{admired.pdf}}
-       \end{center}
-    \end{figure}
-    
-
-    \hspace*{\fill}--- \url{https://survey.stackoverflow.co/2023/}
-
-
-\end{frame}
-
-
-
-
-\begin{frame}
-    \frametitle{A review of some scientific computing environments}
-
-
-    General purpose scientific computing environments:
-
-        \vspace{0.5em}
-        \vspace{0.5em}
     \begin{enumerate}
-        \item Fortran / C / C++
+        \item traditional ahead-of-time (AOT) compiled languages
         \vspace{0.5em}
+        \item interpreted languages and the ``vectorization'' trick
         \vspace{0.5em}
-        \item MATLAB $\approx$ Python + NumPy
+        \item beyond vectorization: modern just-in-time (JIT) compilers
         \vspace{0.5em}
-        \vspace{0.5em}
-        \item Julia $\approx$ Python + Numba 
-        \vspace{0.5em}
-        \vspace{0.5em}
-        \item Python + Google JAX $\approx$ Python + PyTorch
+        \item parallelization
     \end{enumerate}
 
 \end{frame}
 
 
 
+
+
 \begin{frame}
-    \frametitle{Fortran / C / C++ --- static types and AOT compilers}
+    \frametitle{Traditional paradigm: static types and AOT compilers}
 
+    Typical languages: \brown{Fortran / C / C++ }
 
+        \vspace{0.5em}
+        \vspace{0.5em}
     \Eg Suppose we want to compute the sequence
     %
     \begin{equation*}
@@ -333,7 +294,6 @@
     %
     from some given $k_0$ 
 
-        \vspace{0.5em}
         \vspace{0.5em}
         \vspace{0.5em}
 
@@ -388,26 +348,29 @@ k = 6.240251
 
 \begin{frame}
 
-    Pros
+    \navy{Pros}
 
     \begin{itemize}
-        \item fast 
+        \item fast loops / arithmetic
     \end{itemize}
 
 
     \vspace{0.5em}
 
-    Cons
+    \navy{Cons}
 
     \begin{itemize}
-        \item time consuming to write
-        \item hard to debug
-        \item hard to parallelize
-        \item low interactivity
+        \item low interactivity!
+        \item time consuming to write large programs
+        \item relatively hard to read / debug
         \item low portability
+        \item hard to parallelize!!
     \end{itemize}
 
 \end{frame}
+
+
+
 
 \begin{frame}[fragile]
 
@@ -421,7 +384,7 @@ s = 0.3
 n = 1_000
 k = 0.2
 
-for i in range(n-1):
+for i in range(n):
     k = s * k**α + (1 - δ) * k
 
 print(k)
@@ -437,10 +400,10 @@ print(k)
     Pros
 
     \begin{itemize}
+        \item high interactivity
         \item easy to write
         \item high portability
         \item easy to debug
-        \item high interactivity
     \end{itemize}
 
     \vspace{0.5em}
@@ -448,7 +411,7 @@ print(k)
     Cons
 
     \begin{itemize}
-        \item slow
+        \item slow loops / arithmetic
     \end{itemize}
 
     \pause
@@ -556,6 +519,7 @@ str
 
 
 \begin{frame}
+    \frametitle{The vectorization trick}
     
     \begin{figure}
        \begin{center} % l b r t
@@ -596,6 +560,36 @@ str
 
 
 \end{frame}
+
+
+\begin{frame}
+    \frametitle{Vectorization: the good, the bad and the ugly}
+
+    \navy{Pros}
+
+    \begin{itemize}
+        \item high interactivity / portability 
+        \vspace{0.2em}
+        \item many scientific calculations can be framed as operations on arrays
+    \end{itemize}
+
+    \vspace{0.5em}
+
+    \navy{Cons}
+
+    \begin{itemize}
+        \item some tasks cannot be efficiently vectorized
+        \vspace{0.2em}
+        \item precompiled binaries cannot adapt flexibly to function arguments
+        \vspace{0.2em}
+        \item precompiled binaries cannot adapt flexibly to hardware
+    \end{itemize}
+
+    These last two issues turn out to be extremely important
+
+\end{frame}
+
+
 
 
 \begin{frame}[fragile]
@@ -671,7 +665,7 @@ solow(0.2)
     \begin{minted}{python}
 from numba import jit
 
-@jit(nopython=True)
+@jit
 def solow(k0, α=0.4, δ=0.1, n=1_000):
     k = k0
     for i in range(n-1):
@@ -736,7 +730,7 @@ solow(0.2)
     \begin{itemize}
         \item automated intelligent parallelization
     \vspace{0.5em}
-        \item JIT compiled
+        \item JIT compiled  --- flexible
     \vspace{0.5em}
         \item portable
     \vspace{0.5em}
@@ -746,6 +740,50 @@ solow(0.2)
 
 
 \end{frame}
+
+
+\begin{frame}
+    
+
+    Last topic: Trends and future directions
+
+\end{frame}
+
+
+\begin{frame}
+
+    Some trends: 
+
+    \begin{figure}
+       \begin{center}
+        \scalebox{0.4}{\includegraphics{pvr.png}}
+       \end{center}
+    \end{figure}
+
+    Source: Stackoverflow Trends
+
+\end{frame}
+
+
+\begin{frame}
+
+    Stack Overflow 2023 Developer Survey (50 languages)
+
+
+    \begin{figure}
+       \begin{center}
+        \scalebox{0.5}{\includegraphics{admired.pdf}}
+       \end{center}
+    \end{figure}
+    
+
+    \hspace*{\fill}--- \url{https://survey.stackoverflow.co/2023/}
+
+
+\end{frame}
+
+
+
 
 \end{document}
 

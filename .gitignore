@@ -12,4 +12,4 @@
 .ipynb_checkpoints/
 .virtual_documents/
 __pycache__/
-_minted*
+*/_minted*

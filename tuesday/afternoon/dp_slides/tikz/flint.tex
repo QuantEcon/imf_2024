@@ -1,0 +1,22 @@
+
+\begin{tikzpicture}[auto, thick, node distance=30pt]
+
+\node (s) {initial $\sigma$};
+\node (s1) [below of=s] {$v_{\sigma}$-greedy $\sigma'$};
+\node (el1) [below of=s1] {$\vdots$};
+\node (s2) [below of=el1] {$\sigma^*$};
+
+\node (v) [right=70pt of s] {$v_{\sigma} = (I - \beta P_\sigma)^{-1} r_\sigma$};
+\node (v1) [below of=v] {$v_{\sigma'} = (I - \beta P_{\sigma'})^{-1} r_{\sigma'}$};
+\node (el2) [below of=v1] {$\vdots$};
+\node (v2) [below of=el2] {$v_{\sigma^*} = (I - \beta P_{\sigma^*})^{-1} r_{\sigma^*}$};
+
+\node[draw, ellipse, minimum width=50pt, fit=(s) (s1) (s2)](f1) {};
+\node[draw, ellipse, minimum width=50pt, fit=(v) (v1) (v2)](f2) {};
+
+\draw[->, bend left=0] (s) to (v);
+\draw[->] (v) to (s1);
+\draw[->] (s1) to (v1);
+\draw[->] (el2) to (s2);
+
+\end{tikzpicture}
