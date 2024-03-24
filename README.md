@@ -45,9 +45,9 @@ will join remotely and run a one hour session on the 27th.
 * Monday morning: Introduction 
   - Scientific computing: directions and trends (`intro_slides/sci_comp_intro.pdf`)
   - Python and the AI revolution (`ai_revolution/ai_revolution.pdf`)
-  - A taste of HPC with Python (`fun_with_jax.ipynb`)
   - A brief tour of Python's massive scientific computing ecosystem (`scientific_python/main.pdf`)
   - Working with Jupyter (free coding)
+  - A taste of HPC with Python (`fun_with_jax.ipynb`)
 * Monday afternoon: Python basics
   - Core Python  (`quick_python_intro.ipynb`)
   - NumPy / SciPy / Matplotlib / Numba (`quick_scientific_python_intro.ipynb`)
