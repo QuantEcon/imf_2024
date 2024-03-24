@@ -73,7 +73,7 @@ The first line imports [NumPy](https://python-programming.quantecon.org/numpy.ht
 
 After `import numpy as np` we have access to these attributes via the syntax `np.attribute`.
 
-Here’s two more examples
+Here are two more examples
 
 ```{code-cell} ipython3
 np.sqrt(4)

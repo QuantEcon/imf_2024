@@ -36,7 +36,7 @@ import quantecon as qe
 ```
 
 
-## Preamble: The Lorenz curve and Gini coefficiet
+## Preamble: The Lorenz curve and Gini coefficient
 
 
 ### Definition
@@ -204,7 +204,7 @@ Using the definition above and NumPy, try to write your own version of
 
 * Try to replicate the figure above.
 * If possible, accelerate your code with Numba
-* If possible, parellelize one of the loops
+* If possible, parallelize one of the loops
 
 ```{code-cell} ipython3
 for i in range(12):
