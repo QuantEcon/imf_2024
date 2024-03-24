@@ -24,7 +24,8 @@ This notebook contains some exercises related to simulation.
 ```{code-cell} ipython3
 import numpy as np
 import matplotlib.pyplot as plt
-from numba import jit, njit, prange
+import numba
+from numba import jit, prange
 ```
 
 
@@ -32,7 +33,7 @@ from numba import jit, njit, prange
 
 Compute an approximation to $ \pi $ using [Monte Carlo](https://en.wikipedia.org/wiki/Monte_Carlo_method).
 
-Use new imports.  Your hints are as follows:
+Your hints are as follows:
 
 - If $ U $ is a bivariate uniform random variable on the unit square $ (0, 1)^2 $, then the probability that $ U $ lies in a subset $ B $ of $ (0,1)^2 $ is equal to the area of $ B $.  
 - If $ U_1,\ldots,U_n $ are IID copies of $ U $, then, as $ n $ gets large, the fraction that falls in $ B $, converges to the probability of landing in $ B $.  
@@ -49,22 +50,21 @@ for _ in range(12):
 
 Consider the circle of diameter 1 embedded in the unit square.
 
-Let $ A $ be its area and let $ r=1/2 $ be its radius.
+Let $ A $ be its area and let $ r=1/2 $ be its radius, so that $A = \pi r^2 $.
 
-If we know $ \pi $ then we can compute $ A $ via
-$ A = \pi r^2 $.
+If we can estimate $A$ then we can estimate $ \pi $ via $ \pi = A / r^2 = 4A$.
 
-But here the point is to compute $ \pi $, which we can do by
-$ \pi = A / r^2 $.
-
-Summary: If we can estimate the area of a circle with diameter 1, then dividing
-by $ r^2 = (1/2)^2 = 1/4 $ gives an estimate of $ \pi $.
-
-We estimate the area by sampling bivariate uniforms and looking at the
-fraction that falls into the circle.
+We estimate $A$ by sampling bivariate uniforms and looking at the fraction that falls into the circle.
 
 ```{code-cell} ipython3
-n = 1000000 # sample size for Monte Carlo simulation
+n = 1_000_000 # sample size for Monte Carlo simulation
+
+def in_circle(u, v):
+    """
+    Test whether (u, v) falls within the unit circle centred at (0.5,0.5)
+    """
+    d = np.sqrt((u - 0.5)**2 + (v - 0.5)**2)
+    return d < 0.5
 
 count = 0
 for i in range(n):
@@ -72,19 +72,15 @@ for i in range(n):
     # drawing random positions on the square
     u, v = np.random.uniform(0, 1), np.random.uniform(0, 1)
 
-    # check whether the point falls within the boundary
-    # of the unit circle centred at (0.5,0.5)
-    d = np.sqrt((u - 0.5)**2 + (v - 0.5)**2)
-
-    # if it falls within the inscribed circle, 
-    # add it to the count
-    if d < 0.5:
+    # if it falls within the circle, add it to the count
+    if in_circle(u, v):
         count += 1
 
 area_estimate = count / n
 
 print(area_estimate * 4)  # dividing by radius**2
 ```
+
 
 ## Exercise
 
@@ -103,7 +99,6 @@ def calculate_pi(n=1_000_000):
         d = np.sqrt((u - 0.5)**2 + (v - 0.5)**2)
         if d < 0.5:
             count += 1
-
     area_estimate = count / n
     return area_estimate * 4  # dividing by radius**2
 ```
@@ -113,7 +108,7 @@ def calculate_pi(n=1_000_000):
 ```
 
 ```{code-cell} ipython3
-fast_calc_pi = njit(calculate_pi)
+fast_calc_pi = jit(calculate_pi)
 ```
 
 ```{code-cell} ipython3
@@ -156,7 +151,7 @@ If your code is correct, it should be about 2/3.
 Hints:
 
 - Represent the low state as 0 and the high state as 1.  
-- If you want to store integers in a NumPy array and then apply JIT compilation, use `x = np.empty(n, dtype=np.int_)`.  
+- If you want to store integers in a NumPy array and then apply JIT compilation, use `x = np.empty(n, dtype=numba.int64)` or similar.  
 
 ```{code-cell} ipython3
 # Put your code here
@@ -180,7 +175,7 @@ Here’s a pure Python version of the function
 
 ```{code-cell} ipython3
 def compute_series(n):
-    x = np.empty(n, dtype=np.int_)
+    x = np.empty(n, dtype=int)
     x[0] = 1  # Start in state 1
     U = np.random.uniform(0, 1, size=n)
     for t in range(1, n):
@@ -207,7 +202,22 @@ print(np.mean(x == 0))  # Fraction of time x is in state 0
 Now let's speed it up:
 
 ```{code-cell} ipython3
-fast_compute_series = njit(compute_series)
+
+```{code-cell} ipython3
+@jit
+def fast_compute_series(n):
+    x = np.empty(n, dtype=numba.int8)
+    x[0] = 1  # Start in state 1
+    U = np.random.uniform(0, 1, size=n)
+    for t in range(1, n):
+        current_x = x[t-1]
+        if current_x == 0:
+            x[t] = U[t] < p
+        else:
+            x[t] = U[t] > q
+    return x
+```
+
 ```
 
 Run once to compile:
@@ -308,7 +318,7 @@ M = 10_000_000
 n, β, K = 20, 0.99, 100
 μ, ρ, ν, S0, h0 = 0.0001, 0.1, 0.001, 10, 0
 
-@njit(parallel=True)
+@jit(parallel=True)
 def compute_call_price_parallel(β=β,
                                 μ=μ,
                                 S0=S0,
