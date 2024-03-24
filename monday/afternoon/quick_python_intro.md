@@ -19,7 +19,11 @@ kernelspec:
 
 #### Prepared for the QuantEcon-ICD Computational Economics Course (March 2024)
 
+-----
+
 This notebook provides a super quick introduction to Python.
+
+Participants who don't need it can either ask more advanced questions or sleep.
 
 Participants who want a slower treatment can either
 
@@ -219,6 +223,13 @@ Your task is to generate and plot the sequence $b_0, b_1, \ldots, b_T $.
 
 You can use a Python list to store this sequence, or a NumPy array.
 
+In the first case, start with 
+
+```{code-cell} ipython3
+T = 50
+b = []
+```
+
 In the second case, you can use a statement such as
 
 ```{code-cell} ipython3
@@ -226,7 +237,7 @@ T = 50
 b = np.empty(T+1)   # Allocate memory to store all b_t
 ```
 
-and then populating `b[t]` in a for loop.
+and then populate `b` in a for loop.
 
 ```{code-cell} ipython3
 for i in range(12):
@@ -238,9 +249,27 @@ for i in range(12):
 ```{code-cell} ipython3
 r = 0.025         # interest rate
 T = 50            # end date
+```
+
+Here's the list-based solution
+
+```{code-cell} ipython3
+b = []
+x = 10         # initial balance
+for t in range(T):
+    b.append(x)
+    x = (1 + r) *x
+b.append(x)
+plt.plot(b, label='bank balance')
+plt.legend()
+plt.show()
+```
+
+And here's the NumPy array-based solution.
+
+```{code-cell} ipython3
 b = np.empty(T+1) # an empty NumPy array, to store all b_t
 b[0] = 10         # initial balance
-
 for t in range(T):
     b[t+1] = (1 + r) * b[t]
 
@@ -328,7 +357,7 @@ plt.legend()
 plt.show()
 ```
 
-## Flow Control
+## Conditional execution
 
 One important aspect of essentially all programming languages is branching and
 conditions.
@@ -383,7 +412,6 @@ for i in range(12):
 Here’s one way:
 
 ```{code-cell} ipython3
-
 x = np.empty(T+1)
 x[0] = 0
 
@@ -700,7 +728,7 @@ These are the standard logical connectives (conjunction, disjunction and denial)
 not not True
 ```
 
-## Coding Style and Documentation
+### Coding Style and Documentation
 
 A consistent coding style make code easier to understand and maintain.
 
@@ -722,7 +750,6 @@ Part 2: In one line, count the number of even numbers in 0,…,99.
 
 Part 3: Given `pairs = ((2, 5), (4, 2), (9, 8), (12, 10))`, count the number of pairs `(a, b)`
 such that both `a` and `b` are even.
-
 
 ```{code-cell} ipython3
 for i in range(12):
@@ -819,8 +846,11 @@ def new_abs_function(x):
 Let’s call it to check that it works:
 
 ```{code-cell} ipython3
-print(new_abs_function(3))
-print(new_abs_function(-3))
+new_abs_function(3)
+```
+
+```{code-cell} ipython3
+new_abs_function(-3)
 ```
 
 Note that a function can have arbitrarily many `return` statements (including zero).
@@ -1234,7 +1264,7 @@ inspect(x)
 If we want to see the methods as well, we can use
 
 ```{code-cell} ipython3
-inspect(10, methods=True)
+inspect(x, methods=True)
 ```
 
 In fact there are still more methods, as you can see if you execute `inspect(10, all=True)`.
@@ -1253,7 +1283,6 @@ Consider the Python statement
 
 x = 42
 ```
-
 
 In Python, `x` is called a **name**, and the statement `x = 42` **binds** the name `x` to the integer object `42`.
 
@@ -1276,8 +1305,6 @@ id(g) == id(f)
 
 g('test')
 ```
-
-
 
 What happens when the number of names bound to an object goes to zero?
 
@@ -1390,8 +1417,6 @@ This is entirely equivalent to `math.__dict__['pi']`
 math.__dict__['pi'] 
 ```
 
-
-
 Another way to view the namespace of `math` is
 
 ```{code-cell} ipython3
@@ -1482,8 +1507,6 @@ import numpy as np
 ```
 
 ### Global and local namespaces
-
-Python documentation often makes reference to the “global namespace”.
 
 The **global namespace** is *the namespace of the module currently being executed*.
 
@@ -1658,7 +1681,6 @@ def f(x):
 x = [1]
 print(f(x), x)
 ```
-
 
 Here’s what happens
 
