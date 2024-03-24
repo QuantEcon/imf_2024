@@ -201,7 +201,6 @@ print(np.mean(x == 0))  # Fraction of time x is in state 0
 
 Now let's speed it up:
 
-```{code-cell} ipython3
 
 ```{code-cell} ipython3
 @jit
@@ -218,7 +217,6 @@ def fast_compute_series(n):
     return x
 ```
 
-```
 
 Run once to compile:
 
