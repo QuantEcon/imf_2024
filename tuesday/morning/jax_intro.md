@@ -398,10 +398,6 @@ And now let's time it.
 %time g_jit(x).block_until_ready()
 ```
 
-```{code-cell} ipython3
-%time g_jit(x).block_until_ready()
-```
-
 Note the speed gain.
 
 This is because 
