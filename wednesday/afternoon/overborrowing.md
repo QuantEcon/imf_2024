@@ -187,7 +187,7 @@ $$
     \right\}
 $$
 
-subject to the market clearning conditions and 
+subject to the market clearing conditions and 
 the same constraint
 
 $$
@@ -805,7 +805,7 @@ Nonetheless, it is qualitatively similar.
 Your task is to examine the ergodic distribution of borrowing in the decentralized and
 planner equilibria.
 
-We recomend that you use simulation and a kernel density estimate.
+We recommend that you use simulation and a kernel density estimate.
 
 Here's a function for generating the borrowing sequence.
 
