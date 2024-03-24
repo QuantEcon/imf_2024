@@ -703,7 +703,7 @@ output_dist = q(φ_sample, p_star, parameters)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.hist(np.log(output_dist), bins=100, density=True,
         label="firm size distribution")
-ax.set_xlabel("log ouput")
+ax.set_xlabel("log output")
 ax.set_ylabel("frequency")
 ax.legend()
 plt.show()
