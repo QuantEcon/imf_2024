@@ -292,24 +292,28 @@
 \end{frame}
 
 
-\section{Introduction}
 
 \begin{frame}
     \frametitle{Topics}
 
     \begin{itemize}
-        \item Introduction to the problem
-        \vspace{0.5em}
-        \item Lifetime value
-        \vspace{0.5em}
         \item Optimality
         \vspace{0.5em}
-        \item Value function iteration
+        \item Value function iteration (VFI)
         \vspace{0.5em}
-        \item Howard policy iteration
+        \item Howard policy iteration (OPI)
         \vspace{0.5em}
-        \item Optimistic policy iteration
+        \item Optimistic policy iteration (HPI)
     \end{itemize}
+
+        \vspace{0.5em}
+        \vspace{0.5em}
+        \vspace{0.5em}
+
+    What convergence properties?
+        \vspace{0.5em}
+
+    How do they interact with parallelization? 
 
 \end{frame}
 
@@ -322,13 +326,13 @@
     We take as given 
     %
     \begin{enumerate}
-        \item a finite set $\Xsf$ called the \navy{state space} and
+        \item a set $\Xsf$ with $n$ elements called the \navy{state space} and
     \vspace{0.5em}
         \item a finite set $\Asf$ called the \navy{action space}
     \end{enumerate}
      
     \vspace{0.5em}
-    We study a controller who, at each integer $t \geq 0$
+    We study an agent who, at each integer $t \geq 0$
     %
     \begin{enumerate}
         \item observes the current state $X_t \in \Xsf$
@@ -363,47 +367,14 @@
     \vspace{0.5em}
     \vspace{0.5em}
 
-    Reward $r(x, a)$ is received at feasible state-action pair $(x, a)$
-
-    \vspace{0.5em}
-
     Let $P$ denote transition probabilities:
 
     \begin{equation*}
         P(x, a, x') = \text{ prob of transitioning to $x'$ given $x, a$}
     \end{equation*}
 
+    \vspace{0.5em}
 
-\end{frame}
-
-
-\begin{frame}
-
-    MDP dynamics:
-    
-    \vspace{0.4em}
-    \vspace{0.4em}
-
-    \begin{algorithm}[H]
-        \DontPrintSemicolon
-        $t \leftarrow 0$ \;
-        input $X_0$ \;
-        \While{$t < \infty$}
-        {
-            observe $X_t$   \;
-            choose action $A_t$ from $\Gamma(X_t)$  \;
-            receive reward $r(X_t, A_t)$   \;
-            draw $X_{t+1}$ from $P(X_t, A_t, \cdot)$   \;
-            $t \leftarrow t + 1$ \;
-        }
-    \end{algorithm}
-
-
-\end{frame}
-
-
-
-\begin{frame}
     
     The \navy{Bellman equation} is
     %
@@ -458,49 +429,23 @@
 
 \begin{frame}
 
-    If $A_t := \sigma(X_t)$ at all $t \geq 0$, then
-    %
-    \begin{equation*}
-        X_{t+1} \sim P(X_t, \sigma(X_t), \cdot)
-        \quad \text{for all $t \geq 0$}
-    \end{equation*}
-
-    \vspace{0.5em}
-    Thus, $X_t$ is $P_\sigma$-Markov for
-    %
-    \begin{equation*}
-        P_\sigma(x, x') := P(x, \sigma(x), x')
-        \qquad (x, x' \in \Xsf)
-    \end{equation*}
-    %
-
-    \vspace{0.5em}
-
-    \begin{itemize}
-        \item Fixing a policy ``closes the loop'' in the state dynamics
-    \end{itemize}
-
-\end{frame}
-
-
-\begin{frame}
-    \frametitle{Lifetime rewards}
-    
-    Under the policy $\sigma$, rewards at $x$ given by $r(x, \sigma(x))$  
-
-    \vspace{0.5em}
-    Let
+    Fixing $\sigma \in \Sigma$, set
     %
     \begin{itemize}
-        \item $r_\sigma(x) := r(x, \sigma(x))$
+        \item $P_\sigma(x, x') := P(x, \sigma(x), x') =$ Markov dynamics given
+            $\sigma$
+        \vspace{0.5em}
+        \item $r_\sigma(x) := r(x, \sigma(x)) = $ rewards at $x$ given $\sigma$
         \vspace{0.5em}
         \item $\EE_x := \EE[ \; \cdot \; \given X_0 = x]$
     \end{itemize}
 
     \vspace{0.5em}
     \vspace{0.5em}
-    Now
-    %
+    \vspace{0.5em}
+    \vspace{0.5em}
+    When our actions follow $\sigma$, we have
+    
     \begin{equation*}
         \EE_x  \, r(X_t, A_t) 
          = \EE_x  \, r_\sigma(X_t)  
@@ -565,7 +510,7 @@
 
 
     \vspace{0.5em}
-    In vector notation, we can write
+    In vector notation (with $v \in \RR^n$),
     %
     \begin{equation*}
         T_\sigma \, v 
@@ -577,7 +522,7 @@
     \vspace{0.5em}
 
     \begin{itemize}
-        \item \Fact $T_\sigma$ is a contraction map
+        \item \Fact $T_\sigma$ is a contraction map on $\RR^n$
     \end{itemize}
 
 \end{frame}
@@ -643,21 +588,7 @@
 
 
 \begin{frame}
-    \frametitle{The Bellman Operator}
     
-    Recall: the Bellman equation is 
-    %
-    \begin{equation*}
-            v(x)
-            = \max_{a \in \Gamma(x)}
-            \left\{
-                r(x, a)
-                + \beta
-                \sum_{x' } v(x') P(x, a, x')
-            \right\}
-    \end{equation*}
-    %
-
     \vspace{0.5em}
     The \navy{Bellman operator} is  defined by
     %
@@ -673,8 +604,14 @@
     %
 
     \vspace{0.5em}
+    \vspace{0.5em}
+    \vspace{0.5em}
 
-    By construction, $Tv=v$ $\iff$ $v$  satisfies the Bellman equation
+    By construction, 
+
+    \begin{center}
+        $Tv=v$ $\iff$ $v$  satisfies the Bellman equation
+    \end{center}
 
 \end{frame}
 
@@ -683,9 +620,7 @@
     \frametitle{Optimality}
 
     \vspace{0.5em}
-    The \navy{value function} is defined by $v^* := \vee_{\sigma \in \Sigma} \, v_\sigma$
-
-    More explicitly,
+    The \navy{value function} is defined by
     %
     \begin{equation*}
         v^*(x) := \max_{\sigma \in \Sigma} v_\sigma(x)
@@ -693,16 +628,13 @@
     \end{equation*}
     %
 
-    Thus, $v^*(x) = $ \underline{maximal lifetime value} from state $x$
-
+    \vspace{0.5em}
     \vspace{0.5em}
     A policy $\sigma \in \Sigma$ is called \navy{optimal} if
     %
     \begin{equation*}
         v_\sigma = v^*
     \end{equation*}
-
-    Thus, $\sigma$ is optimal $\iff$ lifetime value is maximal at each state  
 
 \end{frame}
 
@@ -711,6 +643,10 @@
 
 \begin{frame}\label{slide:mdp_result}
 
+    Standard theory (Bellman, Denardo, Blackwell)
+
+        \vspace{0.5em}
+        \vspace{0.5em}
     \begin{block}{}
         {\bf Theorem.} For the DP model described above,
         %
@@ -719,18 +655,16 @@
             \item $v^*$ is the unique fixed point of $T$
                 in $\RR^n$
             \vspace{0.5em}
+            \vspace{0.5em}
             \item A feasible policy is optimal if and only it is
                 $v^*$-greedy
+            \vspace{0.5em}
             \vspace{0.5em}
             \item At least one optimal policy exists
         \end{enumerate}
         %
     \end{block}
 
-    \vspace{0.5em}
-    \vspace{0.5em}
-
-    \textbf{Remark:} Point (2) is called \navy{Bellman's principle of optimality}
 
 
 \end{frame}
@@ -739,25 +673,14 @@
 \begin{frame}
     \frametitle{Algorithms}
 
-    Previously we used value function iteration (VFI) to solve optimal
-    stopping problems
+    Now we present three algorithms:
 
-    \vspace{0.5em}
-    \vspace{0.5em}
-    Here we
     %
     \begin{enumerate}
-        \item present a generalization suitable for arbitrary MDPs
-    \vspace{0.5em}
-        \item introduce two other important methods
-    \end{enumerate}
-
-    \vspace{0.5em}
-    The two other methods are called
-    %
-    \begin{enumerate}
-        \item Howard policy iteration (HPI) and
-    \vspace{0.5em}
+        \item Value function iteration (HPI)
+        \vspace{0.5em}
+        \item Howard policy iteration (HPI) 
+        \vspace{0.5em}
         \item Optimistic policy iteration (OPI)
     \end{enumerate}
 
@@ -770,8 +693,8 @@
 {\small 
     \begin{algorithm}[H]
     \DontPrintSemicolon
-    input $v_0 \in \RR^n$, an initial guess of $v^*$ \;
-    input $\tau$, a tolerance level for error \;
+    input $v_0 \in \RR^n$\;
+    input $\tau$\;
     $\epsilon \leftarrow \tau + 1$ \;
     $k \leftarrow 0$ \;
     \While{$\epsilon > \tau $}
@@ -800,15 +723,13 @@
         \item easy to implement 
         \vspace{0.5em}
         \item globally convergent
-        \vspace{0.5em}
-        \item relatively robust
     \end{itemize}
 
     \vspace{0.5em}
     \vspace{0.5em}
     \vspace{0.5em}
     \vspace{0.5em}
-    But convergence can be slow\ldots
+    But the convergence rate is only linear  
 
 \end{frame}
 
@@ -865,20 +786,15 @@
     \vspace{0.5em}
     \vspace{0.5em}
 
-    In fact HPI is analogous to gradient-based Newton iteration on $T$
+    In fact HPI $=$ gradient-based Newton iteration on $T$
     \vspace{0.5em}
 
     \begin{itemize}
-        \item Details are in the text
+        \item Implies a quadratic rate of convergence
+        \vspace{0.5em}
+        \item Details are in \url{https://dp.quantecon.org}
     \end{itemize}
 
-    In general, for a given fixed point problem,
-    %
-    \begin{enumerate}
-        \item Newton iteration yields a quadratic rate of convergence
-        \vspace{0.5em}
-        \item Successive approximation yields a linear rate of convergence
-    \end{enumerate}
 
 \end{frame}
 
@@ -930,8 +846,8 @@
     {\small
     \begin{algorithm}[H]
         \DontPrintSemicolon
-        input $v_0 \in \RR^n$, an initial guess of $v^*$ \;
-        input $\tau$, a tolerance level for error \;
+        input $v_0 \in \RR^n$\;
+        input $\tau$\;
         input $m \in \NN$, a step size \;
         $k \leftarrow 0$ \;
         $\epsilon \leftarrow \tau + 1$ \;
@@ -952,9 +868,6 @@
 
 \begin{frame}
 
-
-    \Fact OPI $=$ VFI  when $m=1$
-
     \vspace{0.5em}
     \vspace{0.5em}
     \begin{block}{}
@@ -966,7 +879,12 @@
 
 \begin{frame}
 
-    If $m$ is large, OPI is similar to HPI 
+
+
+    It's easy to show that OPI $=$ VFI  when $m=1$
+
+
+    On the other hand, $m$ is large, OPI is similar to HPI 
 
 
     \vspace{0.5em}
@@ -975,10 +893,13 @@
     \end{itemize}
 
 
+    \vspace{0.5em}
+    \vspace{0.5em}
+    \vspace{0.5em}
     Rules of thumb:
 
     \begin{itemize}
-        \item parallelization tends to favor HPI
+        \item parallelization tends to favor HPI -- small number of expensive steps
         \vspace{0.5em}
         \item OFI is simple and dominates VFI for many values of $m$
         \vspace{0.5em}
