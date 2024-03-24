@@ -311,6 +311,7 @@
     %
     \begin{equation*}
         y = f(x)
+        \qquad (x \in \RR^d, \; y \in \RR)
     \end{equation*}
 
     \Egs
@@ -360,7 +361,7 @@
     where
     %
     \begin{itemize}
-        \item $A_{i} x = W_{i} x + b_{i} $ is an affine map 
+        \item $A_{i} x = W_i x + b_i $ is an affine map 
         \vspace{0.5em}
         \item $\sigma$ is a nonlinear ``activation'' function
     \end{itemize}
@@ -466,7 +467,7 @@ from jax import grad, jit
 
 def f(params, x):
   for W, b in params:
-    y = jnp.dot(W, x) + b
+    y = W @ x + b
     x = jnp.tanh(y)  
   return y                
 
