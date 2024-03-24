@@ -13,6 +13,12 @@ kernelspec:
 
 # Programming Exercise: Lorenz Curves and Gini Coefficients
 
+-----
+
+#### Chase Coleman and John Stachurski
+
+#### Prepared for the QuantEcon ICD Computational Workshop (March 2024)
+
 This notebook contains some programming exercises related to the Lorenz curve
 and the Gini coefficient, which are often used to study inequality.
 
@@ -29,12 +35,10 @@ We use the following imports.
 
 ```{code-cell} ipython3
 import numba
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import quantecon as qe
 ```
-
 
 ## Preamble: The Lorenz curve and Gini coefficient
 
@@ -66,10 +70,9 @@ people have $(100 \times y)$\% of all wealth.
 * if $x=0.5$ and $y=0.1$, then the bottom 50% of the population
   owns 10% of the wealth.
 
-
 +++
 
-### Using quantecon's routine
+### Using QuantEcon's routine
 
 In the next figure, we generate $n=2000$ draws from a lognormal
 distribution and treat these draws as our population.  
@@ -80,25 +83,29 @@ The straight line ($x=L(x)$ for all $x$) corresponds to perfect equality.
 
 The lognormal draws produce a less equal distribution.  
 
-For example, if we imagine these draws as being observations of wealth across a
-sample of households, then the dashed lines show that the bottom 80\% of
-households own just over 40\% of total wealth.
-
 ```{code-cell} ipython3
 n = 2000
 sample = np.exp(np.random.randn(n))       # Lognormal sample
-x, y = qe.lorenz_curve(sample)  # No need to sort 
+x, y = qe.lorenz_curve(sample)            # QuantEcon routine (no need to sort)
 
 fig, ax = plt.subplots()
 ax.plot(x, y, label=f'lognormal sample', lw=2)
 ax.plot(x, x, label='equality', lw=2)
 ax.legend(fontsize=12)
-ax.vlines([0.8], [0.0], [0.43], alpha=0.5, colors='k', ls='--')
-ax.hlines([0.43], [0], [0.8], alpha=0.5, colors='k', ls='--')
 ax.set_ylim((0, 1))
 ax.set_xlim((0, 1))
+j = 1600  # dashed lines for j-th element
+ax.vlines(x[j], [0.0], y[j], alpha=0.5, colors='k', ls='--')
+ax.hlines(y[j], [0], x[j], alpha=0.5, colors='k', ls='--')
 plt.show()
 ```
+
+
+For example, if we imagine these draws as being observations of wealth across a
+sample of households, then the dashed lines show that the bottom 80\% of
+households own just over 40\% of total wealth.
+
++++
 
 **Exercise**
 
@@ -107,6 +114,10 @@ your own version of `qe.lorenz_curve`.
 
 * If possible, accelerate your code with Numba
 * Try to replicate the figure above.
+
+```{code-cell} ipython3
+# Put your code here
+```
 
 ```{code-cell} ipython3
 for i in range(12):
@@ -129,17 +140,17 @@ def lorenz_curve(w):
         y[i] = s[i] / s[n]
     return x, y
 
-
 fig, ax = plt.subplots()
-f_vals, l_vals = qe.lorenz_curve(sample)
-ax.plot(f_vals, l_vals, label=f'lognormal sample', lw=2)
-ax.plot(f_vals, f_vals, label='equality', lw=2)
+ax.plot(x, y, label=f'lognormal sample', lw=2)
+ax.plot(x, x, label='equality', lw=2)
 ax.legend(fontsize=12)
-ax.vlines([0.8], [0.0], [0.43], alpha=0.5, colors='k', ls='--')
-ax.hlines([0.43], [0], [0.8], alpha=0.5, colors='k', ls='--')
 ax.set_ylim((0, 1))
 ax.set_xlim((0, 1))
+j = 1600  # dashed lines for j-th element
+ax.vlines(x[j], [0.0], y[j], alpha=0.5, colors='k', ls='--')
+ax.hlines(y[j], [0], x[j], alpha=0.5, colors='k', ls='--')
 plt.show()
+
 ```
 
 ## The Gini coefficient
@@ -207,23 +218,34 @@ Using the definition above and NumPy, try to write your own version of
 * If possible, parallelize one of the loops
 
 ```{code-cell} ipython3
+# Put your code here
+```
+
+```{code-cell} ipython3
 for i in range(12):
     print("Solution below.")
 ```
 
 **Solution**
 
++++
+
+Here's one solution.
+
+Notice how easy it is to parallelize the loop --- even though `s` is common across the outer loops, which violates independence, this loop is still efficiently parallelized.
+
 ```{code-cell} ipython3
 @numba.jit(parallel=True)
 def gini_coefficient(w):
     n = len(w)
-    i_sum = np.zeros(n)
+    s = 0.0
     for i in numba.prange(n):
         for j in range(n):
-            i_sum[i] += abs(w[i] - w[j])
-    return np.sum(i_sum) / (2 * n * np.sum(w))
+            s += abs(w[i] - w[j])
+    return s / (2 * n * np.sum(w))
+```
 
-
+```{code-cell} ipython3
 ginis = []
 
 for σ in σ_vals:
@@ -237,4 +259,8 @@ ax.plot(σ_vals, ginis, marker='o')
 ax.set_xlabel('$\sigma$', fontsize=12)
 ax.set_ylabel('Gini coefficient', fontsize=12)
 plt.show()
+```
+
+```{code-cell} ipython3
+
 ```
