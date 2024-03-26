@@ -74,20 +74,29 @@ people have $(100 \times y)$\% of all wealth.
 
 ### Using QuantEcon's routine
 
-In the next figure, we generate $n=2000$ draws from a lognormal
-distribution and treat these draws as our population.  
+Let's look at an example.
+
+First we generate $n=2000$ draws from a lognormal distribution and treat these draws as our population.  
+
+
+```{code-cell} ipython3
+n = 2000
+sample = np.exp(np.random.randn(n))       # Lognormal sample
+```
 
 We then generate the Lorenz curve using a routine from `quantecon`.
+
+```{code-cell} ipython3
+x, y = qe.lorenz_curve(sample)            # QuantEcon routine (no need to sort)
+```
+
+Now let's plot.
 
 The straight line ($x=L(x)$ for all $x$) corresponds to perfect equality.  
 
 The lognormal draws produce a less equal distribution.  
 
 ```{code-cell} ipython3
-n = 2000
-sample = np.exp(np.random.randn(n))       # Lognormal sample
-x, y = qe.lorenz_curve(sample)            # QuantEcon routine (no need to sort)
-
 fig, ax = plt.subplots()
 ax.plot(x, y, label=f'lognormal sample', lw=2)
 ax.plot(x, x, label='equality', lw=2)
@@ -113,7 +122,9 @@ Using the definition of the Lorenz curve given above and NumPy, try to write
 your own version of `qe.lorenz_curve`.  
 
 * If possible, accelerate your code with Numba
-* Try to replicate the figure above.
+
+
+Try to replicate the figure above, using the same lognormal data set.
 
 ```{code-cell} ipython3
 # Put your code here
@@ -139,6 +150,9 @@ def lorenz_curve(w):
         x[i] = i / n
         y[i] = s[i] / s[n]
     return x, y
+
+
+x, y = lorenz_curve(sample)    # Our routine
 
 fig, ax = plt.subplots()
 ax.plot(x, y, label=f'lognormal sample', lw=2)
@@ -171,7 +185,7 @@ the Gini coefficient of the sample is defined by
 
 
 
-### Using quantecon's routine
+### Using QuantEcon's routine
 
 Let's examine the Gini coefficient in some simulations using `gini_coefficient`
 from `quantecon`.
@@ -191,8 +205,10 @@ k = 5
 n = 2_000
 ginis = []
 for σ in σ_vals:
+    # Generate the data
     μ = -σ**2 / 2
     y = np.exp(μ + σ * np.random.randn(n))
+    # Calculate the Gini coefficient
     ginis.append(qe.gini_coefficient(y))
 ```
 
@@ -207,6 +223,7 @@ plt.show()
 The plots show that inequality rises with $\sigma$ (as measured by the Gini coefficient).
 
 +++
+
 
 **Exercise**
 
@@ -261,6 +278,3 @@ ax.set_ylabel('Gini coefficient', fontsize=12)
 plt.show()
 ```
 
-```{code-cell} ipython3
-
-```
