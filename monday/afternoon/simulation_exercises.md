@@ -279,7 +279,7 @@ $$
     \hat P_M 
     := \beta^n \mathbb E \max\{ S_n - K, 0 \} 
     \approx
-    \frac{1}{M} \sum_{m=1}^M \max \{S_n^m - K, 0 \}
+    \beta^n \frac{1}{M} \sum_{m=1}^M \max \{S_n^m - K, 0 \}
 $$
     
 
