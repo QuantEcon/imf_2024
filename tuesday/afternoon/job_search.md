@@ -13,6 +13,12 @@ kernelspec:
 
 # Job Search
 
+Uncomment if necessary
+
+```{code-cell} ipython3
+#!pip install quantecon
+```
+
 In this lecture we study a basic infinite-horizon job search with Markov wage
 draws 
 
@@ -24,7 +30,6 @@ We use the following imports.
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
 import quantecon as qe
-from solvers import newton_solver, successive_approx
 import jax
 import jax.numpy as jnp
 from collections import namedtuple
