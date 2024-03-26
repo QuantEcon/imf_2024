@@ -13,6 +13,14 @@ kernelspec:
 
 # An Introduction to JAX
 
+----
+
+#### Chase Coleman and John Stachurski
+
+#### Prepared for the QuantEcon ICD Workshop (March 2024)
+
+----
+
 
 This lecture provides a short introduction to [Google JAX](https://github.com/google/jax).
 
@@ -158,7 +166,7 @@ a
 ```{code-cell} ipython3
 :tags: [raises-exception]
 
-# a[0] = 1   # uncommenting produces a TypeError
+a[0] = 1   # uncommenting produces a TypeError
 ```
 
 The designers of JAX chose to make arrays immutable because JAX uses a
@@ -691,12 +699,6 @@ x_mesh, y_mesh = jnp.meshgrid(x, y)
 Now we get what we want and the execution time is very fast.
 
 ```{code-cell} ipython3
-%%time
-z_mesh = f(x_mesh, y_mesh) 
-```
-
-```{code-cell} ipython3
-%%time
 z_mesh = f(x_mesh, y_mesh) 
 ```
 
@@ -739,6 +741,11 @@ x.nbytes / 1_000_000   # and y is just a pointer to x
 
 This extra memory usage can be a big problem in actual research calculations.
 
+```{code-cell} ipython3
+del x_mesh  # Free memory
+del y_mesh  # Free memory
+```
+
 ### Vectorization attempt 2
 
 +++
@@ -751,6 +758,10 @@ y_reshaped = jnp.reshape(y, (1, n))   # Give y another dimension (row)
 ```
 
 When we evaluate $f$ on these reshaped arrays, we replicate the nested for loops in the original version.
+
+```{code-cell} ipython3
+%time z_reshaped = f(x_reshaped, y_reshaped)
+```
 
 ```{code-cell} ipython3
 %time z_reshaped = f(x_reshaped, y_reshaped)
@@ -818,6 +829,18 @@ Let's check we produce the correct answer:
 ```{code-cell} ipython3
 jnp.allclose(z_vmap, z_mesh)
 ```
+
+Let's finish by cleaning up.
+
+```{code-cell} ipython3
+del z_mesh
+del z_vmap
+del z_reshaped
+```
+
+### Exercises
+
++++
 
 **Exercise**
 
