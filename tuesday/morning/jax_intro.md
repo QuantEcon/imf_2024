@@ -842,6 +842,52 @@ del z_reshaped
 
 +++
 
+Repeat the exercise of computing the approximation to $\pi$ by simulation:
+
+1. draw $n$ observations of a bivariate uniform on the unit square
+2. count the fraction that fall in the unit circle (radius 0.5) centered on (0.5, 0.5)
+3. multiply the result by 4
+
+Use JAX
+
+```{code-cell} ipython3
+for i in range(12):
+    print("Solution below")
+```
+
+**Solution**
+
+```{code-cell} ipython3
+def approx_pi(n, key):
+    u = jax.random.uniform(key, (2, n))
+    distances = jnp.sqrt((u[0, :] - 0.5)**2 + (u[1, :] - 0.5)**2)
+    fraction_in_circle = jnp.mean(distances < 0.5)
+    return fraction_in_circle * 4  # dividing by radius**2
+
+n = 1_000_000 # sample size for Monte Carlo simulation
+key = jax.random.PRNGKey(1234)
+```
+
+```{code-cell} ipython3
+%time approx_pi(n, key)
+```
+
+```{code-cell} ipython3
+%time approx_pi(n, key)
+```
+
+```{code-cell} ipython3
+approx_pi_jitted = jax.jit(approx_pi, static_argnums=(0,))
+```
+
+```{code-cell} ipython3
+%time approx_pi_jitted(n, key)
+```
+
+```{code-cell} ipython3
+%time approx_pi_jitted(n, key)
+```
+
 **Exercise**
 
 In a previous notebook we used Monte Carlo to price a European call option and
