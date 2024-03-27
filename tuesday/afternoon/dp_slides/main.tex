@@ -356,16 +356,7 @@
 
 \begin{frame}
 
-    Actions restricted by a \navy{feasible correspondence} $\Gamma$
 
-    \begin{itemize}
-        \item $\Gamma(x)$ is a nonempty subset of $\Asf$ for each $x \in \Xsf$ 
-    \vspace{0.5em}
-        \item interpretation: $\Gamma(x) =$ actions available in state $x$
-    \end{itemize}
-
-    \vspace{0.5em}
-    \vspace{0.5em}
 
     Let $P$ denote transition probabilities:
 
@@ -388,6 +379,12 @@
             \right\}
     \end{equation*}
     %
+    \vspace{0.5em}
+    \vspace{0.5em}
+
+    \begin{itemize}
+        \item $\Gamma(x) =$ actions available in state $x$
+    \end{itemize}
 
 
 \end{frame}
@@ -673,7 +670,6 @@
 \begin{frame}
     \frametitle{Algorithms}
 
-    Now we present three algorithms:
 
     %
     \begin{enumerate}
@@ -899,7 +895,7 @@
     Rules of thumb:
 
     \begin{itemize}
-        \item parallelization tends to favor HPI -- small number of expensive steps
+        \item parallelization favors HPI -- small number of expensive steps
         \vspace{0.5em}
         \item OFI is simple and dominates VFI for many values of $m$
         \vspace{0.5em}

@@ -89,7 +89,7 @@ $$
     B((w, y), w', v) = u(Rw + y - w') + β \sum_{y'} v(w', y') Q(y, y'). 
 $$
 
-the encapsulate the right hand side of the Bellman equation.
+to represent the (unmaximized) right hand side of the Bellman equation.
 
 
 
@@ -245,7 +245,6 @@ To switch over to JAX, we change `np` to `jnp` throughout and add some
 
 We redefine `create_consumption_model` to produce JAX arrays.
 
-
 ```{code-cell} ipython3
 def create_consumption_model(R=1.01,                    # Gross interest rate
                              β=0.98,                    # Discount factor
@@ -351,21 +350,21 @@ performs fixed point iteration on some given function `T`.
 
 ```{code-cell} ipython3
 def successive_approx_jax(T,                     # Operator (callable)
-                          x_0,                   # Initial condition                
+                          v_0,                   # Initial condition                
                           tolerance=1e-6,        # Error tolerance
                           max_iter=10_000):      # Max iteration bound
-    def body_fun(k_x_err):
-        k, x, error = k_x_err
-        x_new = T(x)
-        error = jnp.max(jnp.abs(x_new - x))
-        return k + 1, x_new, error
+    def body_fun(state):
+        i, v, error = state
+        v_new = T(v)
+        error = jnp.max(jnp.abs(v_new - v))
+        return i + 1, v_new, error
 
-    def cond_fun(k_x_err):
-        k, x, error = k_x_err
-        return jnp.logical_and(error > tolerance, k < max_iter)
+    def cond_fun(state):
+        i, v, error = state
+        return jnp.logical_and(error > tolerance, i < max_iter)
 
-    k, x, error = jax.lax.while_loop(cond_fun, body_fun, 
-                                    (1, x_0, tolerance + 1))
+    initial_state = 1, v_0, tolerance + 1
+    i, x, error = jax.lax.while_loop(cond_fun, body_fun, initial_state)
     return x
 
 successive_approx_jax = \
@@ -378,9 +377,9 @@ in the Bellman operator.
 ```{code-cell} ipython3
 def value_function_iteration(model, tol=1e-5):
     params, sizes, arrays = model
-    vz = jnp.zeros(sizes)
+    v_0 = jnp.zeros(sizes)
     _T = lambda v: T(v, params, sizes, arrays)
-    v_star = successive_approx_jax(_T, vz, tolerance=tol)
+    v_star = successive_approx_jax(_T, v_0, tolerance=tol)
     return v_star, get_greedy(v_star, params, sizes, arrays)
 ```
 
@@ -407,13 +406,21 @@ jax_elapsed = time.time() - start_time
 print(f"VFI completed in {jax_elapsed} seconds.")
 ```
 
+One more time:
+
+```{code-cell} ipython3
+print("Starting VFI on the GPU using vectorization.")
+start_time = time.time()
+v_star_jax, σ_star_jax = value_function_iteration(model)
+jax_elapsed = time.time() - start_time
+print(f"VFI completed in {jax_elapsed} seconds.")
+```
+
 The relative speed gain is
 
 ```{code-cell} ipython3
 print(f"Relative speed gain = {numpy_elapsed / jax_elapsed}")
 ```
-
-
 
 ## Switching to vmap
 
@@ -495,6 +502,16 @@ def value_iteration_vmap(model, tol=1e-5):
 ```
 
 Let's see how long it takes to solve the model using the `vmap` method.
+
+```{code-cell} ipython3
+print("Starting VFI on the GPU using vmap.")
+start_time = time.time()
+v_star_vmap, σ_star_vmap = value_iteration_vmap(model)
+jax_vmap_elapsed = time.time() - start_time
+print(f"VFI completed in {jax_vmap_elapsed} seconds.")
+```
+
+One more time:
 
 ```{code-cell} ipython3
 print("Starting VFI on the GPU using vmap.")
