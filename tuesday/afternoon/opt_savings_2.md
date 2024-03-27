@@ -14,10 +14,15 @@ kernelspec:
 
 # Optimal Savings II: Alternative Algorithms
 
-```{include} _admonition/gpu.md
-```
+-----
 
-In {doc}`opt_savings_1` we solved a simple version of the household optimal
+#### Chase Coleman and John Stachurski
+
+#### IMF QuantEcon-ICD Workshop (March 2024)
+
+-----
+
+In `opt_savings_1.ipynb` we solved a simple version of the household optimal
 savings problem via value function iteration (VFI) using JAX.
 
 In this lecture we tackle exactly the same problem while adding in two
@@ -49,13 +54,12 @@ Details on VFI, HPI and OPI can be found in [this book](https://dp.quantecon.org
 Here we assume readers have some knowledge of the algorithms and focus on
 computation.
 
-For the details of the savings model, readers can refer to {doc}`opt_savings_1`.
 
-In addition to what’s in Anaconda, this lecture will need the following libraries:
+----
+
+Uncomment if necessary:
 
 ```{code-cell} ipython3
-:tags: [hide-output]
-
 !pip install quantecon
 ```
 
@@ -84,9 +88,8 @@ jax.config.update("jax_enable_x64", True)
 
 ## Model primitives
 
-First we define a model that stores parameters and grids.
 
-The {ref}`following code <prgm:create-consumption-model>` is repeated from {doc}`opt_savings_1`.
+The following code is repeated from `opt_savings_1`.
 
 ```{code-cell} ipython3
 def create_consumption_model(R=1.01,                    # Gross interest rate
@@ -471,12 +474,6 @@ w_grid, y_grid, Q = arrays
 ```
 
 ```{code-cell} ipython3
----
-mystnb:
-  figure:
-    caption: Optimal policy function
-    name: optimal-policy-function
----
 σ_star = howard_policy_iteration(model)
 
 fig, ax = plt.subplots()
@@ -489,35 +486,14 @@ plt.show()
 
 ## Tests
 
-Here's a quick test of the timing of each solver.
+Let's create an instance of the model.
 
 ```{code-cell} ipython3
 model = create_consumption_model()
 ```
 
-```{code-cell} ipython3
-print("Starting HPI.")
-start_time = time.time()
-out = howard_policy_iteration(model)
-elapsed = time.time() - start_time
-print(f"HPI completed in {elapsed} seconds.")
-```
-
-```{code-cell} ipython3
-print("Starting VFI.")
-start_time = time.time()
-out = value_function_iteration(model)
-elapsed = time.time() - start_time
-print(f"VFI completed in {elapsed} seconds.")
-```
-
-```{code-cell} ipython3
-print("Starting OPI.")
-start_time = time.time()
-out = optimistic_policy_iteration(model, m=100)
-elapsed = time.time() - start_time
-print(f"OPI completed in {elapsed} seconds.")
-```
+Here's a function that runs any one of the algorithms and returns the result and
+elapsed time.
 
 ```{code-cell} ipython3
 def run_algorithm(algorithm, model, **kwargs):
@@ -529,11 +505,63 @@ def run_algorithm(algorithm, model, **kwargs):
     return result, elapsed_time
 ```
 
+Here's a quick test of each model.
+
+HPI first run:
+
 ```{code-cell} ipython3
-model = create_consumption_model()
+σ_pi, pi_time = run_algorithm(howard_policy_iteration, 
+                              model)
+```
+
+HPI second run:
+
+```{code-cell} ipython3
+σ_pi, pi_time = run_algorithm(howard_policy_iteration, 
+                              model)
+```
+
+VFI first run:
+
+```{code-cell} ipython3
+print("Starting VFI.")
+σ_vfi, vfi_time = run_algorithm(value_function_iteration, 
+                                model, tol=1e-5)
+```
+
+VFI second run:
+
+```{code-cell} ipython3
+print("Starting VFI.")
+σ_vfi, vfi_time = run_algorithm(value_function_iteration, 
+                                model, tol=1e-5)
+```
+
+OPI first run:
+
+```{code-cell} ipython3
+m = 100
+print(f"Starting OPI with $m = {m}$.")
+σ_opi, opi_time = run_algorithm(optimistic_policy_iteration, 
+                                model, m=m, tol=1e-5)
+```
+
+OPI second run:
+
+```{code-cell} ipython3
+m = 100
+print(f"Starting OPI with $m = {m}$.")
+σ_opi, opi_time = run_algorithm(optimistic_policy_iteration, 
+                                model, m=m, tol=1e-5)
+```
+
+
+Now let's run OPI at a range of $m$ values and plot the execution time along
+side the execution time for VFI and HPI.
+
+```{code-cell} ipython3
 σ_pi, pi_time = run_algorithm(howard_policy_iteration, model)
 σ_vfi, vfi_time = run_algorithm(value_function_iteration, model, tol=1e-5)
-
 m_vals = range(5, 600, 40)
 opi_times = []
 for m in m_vals:
@@ -542,13 +570,9 @@ for m in m_vals:
     opi_times.append(opi_time)
 ```
 
+Here's the plot.
+
 ```{code-cell} ipython3
----
-mystnb:
-  figure:
-    caption: Solver times
-    name: howard+value+optimistic-solver-times
----
 fig, ax = plt.subplots()
 ax.plot(m_vals, 
         jnp.full(len(m_vals), pi_time), 

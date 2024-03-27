@@ -13,14 +13,17 @@ kernelspec:
 
 # Optimal Savings I: Value Function Iteration
 
-```{include} _admonition/gpu.md
-```
+-----
 
-In addition to JAX and Anaconda, this lecture will need the following libraries:
+#### Chase Coleman and John Stachurski
+
+#### IMF QuantEcon-ICD Workshop (March 2024)
+
+-----
+
+Uncomment if necessary:
 
 ```{code-cell} ipython3
-:tags: [hide-output]
-
 #!pip install quantecon
 ```
 
@@ -242,7 +245,6 @@ To switch over to JAX, we change `np` to `jnp` throughout and add some
 
 We redefine `create_consumption_model` to produce JAX arrays.
 
-(prgm:create-consumption-model)=
 
 ```{code-cell} ipython3
 def create_consumption_model(R=1.01,                    # Gross interest rate
